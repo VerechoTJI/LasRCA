@@ -1,5 +1,6 @@
 import copy
 from abc import ABC
+from experiments.metrics import compute_localization_metrics
 from sklearn.model_selection import train_test_split
 from shared_util.seed import *
 from tasks.eval import evaluate_ftc
@@ -370,29 +371,20 @@ class BaseClass(ABC):
         sort_pred = np.argsort(pred)[:, ::-1]
 
         result_dict = dict()
-        k_list = [1, 3, 5]
         for ent_type in self.dataset["meta_data"]["ent_types"]:
-            result_dict[ent_type] = {f"AC@{k}": 0 for k in k_list}
-            sub_sort_pred, sub_true, sub_pred = (
+            sub_sort_pred, sub_true = (
                 sort_pred[fault_levels[ent_type]],
                 true[fault_levels[ent_type]],
-                pred[fault_levels[ent_type]],
             )
-            for k in k_list:
-                for i in range(sub_sort_pred.shape[0]):
-                    for j in range(k):
-                        if (
-                            sub_true[i][sub_sort_pred[i][j]] == 1
-                        ):  # and sub_pred[i][sub_sort_pred[i][j]] > 0.5:
-                            result_dict[ent_type][f"AC@{k}"] += 1
-                            break
-                result_dict[ent_type][f"AC@{k}"] /= sub_pred.shape[0]
+            result_dict[ent_type] = compute_localization_metrics(
+                sub_sort_pred, sub_true, max_k=5
+            )
         self.fl_result = copy.deepcopy(result_dict)
         logger.info("----------")
         logger.info(f"fault localization evaluation dataset type: {dataset_type}")
         for ent_type in self.dataset["meta_data"]["ent_types"]:
             logger.info(
-                f'{ent_type.ljust(17)} | AC@1:  {result_dict[ent_type]["AC@1"]:.4f}; AC@3:  {result_dict[ent_type]["AC@3"]:.4f}; AC@5:  {result_dict[ent_type]["AC@5"]:.4f}'
+                f'{ent_type.ljust(17)} | AC@1:  {result_dict[ent_type]["AC@1"]:.4f}; AC@2:  {result_dict[ent_type]["AC@2"]:.4f}; AC@3:  {result_dict[ent_type]["AC@3"]:.4f}; AC@4:  {result_dict[ent_type]["AC@4"]:.4f}; AC@5:  {result_dict[ent_type]["AC@5"]:.4f}; Avg@5:  {result_dict[ent_type]["Avg@5"]:.4f}'
             )
         logger.info("----------")
 
