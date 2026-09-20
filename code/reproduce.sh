@@ -1,6 +1,8 @@
 #！/bin/bash
-# cd /workspace/project/working/2024/LasRCA/code
+# cd E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/code
 # nohup bash reproduce.sh > reproduce.log 2>&1 &
+
+source ./.venv/Scripts/activate
 
 echo "Pretrain and Fine-tuning"
 python ./tasks/fine_tuning_fault_type_classification.py

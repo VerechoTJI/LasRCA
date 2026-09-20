@@ -1,7 +1,12 @@
 from llama_index.core import PromptTemplate
 
-
-POD_CPU_METRICS = ['kpi_container_cpu_usage_seconds', 'kpi_container_cpu_user_seconds', 'kpi_container_cpu_system_seconds', 'kpi_container_cpu_cfs_throttled_seconds', 'kpi_container_cpu_cfs_throttled_periods']
+POD_CPU_METRICS = [
+    "kpi_container_cpu_usage_seconds",
+    "kpi_container_cpu_user_seconds",
+    "kpi_container_cpu_system_seconds",
+    "kpi_container_cpu_cfs_throttled_seconds",
+    "kpi_container_cpu_cfs_throttled_periods",
+]
 POD_CPU_PROMPT = PromptTemplate("""\
 ## Fault Description
 
@@ -27,7 +32,11 @@ Please address the following questions sequentially to methodically assess the s
 3. Fault Type Determination: Based on the identified characteristics and their durations, determine whether the Pod exhibits symptoms of the "CPU Load", or shows no such faults. Consider the descriptions of each fault type to guide your decision.
 """)
 
-POD_MEMORY_METRICS = ['kpi_container_memory_usage_MB', 'kpi_container_memory_working_set_MB', 'kpi_container_memory_rss']
+POD_MEMORY_METRICS = [
+    "kpi_container_memory_usage_MB",
+    "kpi_container_memory_working_set_MB",
+    "kpi_container_memory_rss",
+]
 POD_MEMORY_PROMPT = PromptTemplate("""\
 ## Fault Description
 
@@ -48,7 +57,12 @@ Please address the following questions sequentially to methodically assess the s
 3. Fault Type Determination: Based on the identified characteristics and their durations, determine whether the Pod exhibits symptoms of the "Memory Load", or shows no such faults. Consider the descriptions of each fault type to guide your decision.
 """)
 
-POD_DISK_METRICS = ['kpi_container_fs_reads_MB', 'kpi_container_fs_usage_MB', 'kpi_container_fs_writes_MB', 'kpi_container_threads']
+POD_DISK_METRICS = [
+    "kpi_container_fs_reads_MB",
+    "kpi_container_fs_usage_MB",
+    "kpi_container_fs_writes_MB",
+    "kpi_container_threads",
+]
 POD_DISK_PROMPT = PromptTemplate("""\
 ## Fault Description
 
@@ -85,7 +99,23 @@ Please address the following questions sequentially to methodically assess the s
 3. Fault Type Determination: Based on the identified characteristics and their durations, determine whether the Pod exhibits symptoms of  the "Disk Read IO Load", the "Disk Write IO Load", or shows no such faults. Consider the descriptions of each fault type to guide your decision.
 """)
 
-POD_PROCESS_METRICS = ['kpi_container_cpu_usage_seconds', 'kpi_container_cpu_user_seconds', 'kpi_container_cpu_system_seconds', 'kpi_container_cpu_cfs_throttled_seconds', 'kpi_container_cpu_cfs_throttled_periods', 'kpi_container_memory_cache', 'kpi_container_memory_mapped_file', 'kpi_container_memory_usage_MB', 'kpi_container_memory_working_set_MB', 'kpi_container_memory_rss', 'kpi_container_fs_inodes', 'kpi_container_fs_reads_MB', 'kpi_container_fs_usage_MB', 'kpi_container_fs_writes_MB', 'kpi_container_threads']
+POD_PROCESS_METRICS = [
+    "kpi_container_cpu_usage_seconds",
+    "kpi_container_cpu_user_seconds",
+    "kpi_container_cpu_system_seconds",
+    "kpi_container_cpu_cfs_throttled_seconds",
+    "kpi_container_cpu_cfs_throttled_periods",
+    "kpi_container_memory_cache",
+    "kpi_container_memory_mapped_file",
+    "kpi_container_memory_usage_MB",
+    "kpi_container_memory_working_set_MB",
+    "kpi_container_memory_rss",
+    "kpi_container_fs_inodes",
+    "kpi_container_fs_reads_MB",
+    "kpi_container_fs_usage_MB",
+    "kpi_container_fs_writes_MB",
+    "kpi_container_threads",
+]
 POD_PROCESS_PROMPT = PromptTemplate("""\
 ## Fault Description
 
@@ -111,7 +141,18 @@ Please address the following questions sequentially to methodically assess the s
 3. Fault Type Determination: Based on the identified characteristics and their durations, determine whether the Pod exhibits symptoms of  the "Process Terminated", or shows no such faults. Consider the descriptions of each fault type to guide your decision.
 """)
 
-POD_NETWORK_METRICS = ['kpi_container_network_receive_packets', 'kpi_container_network_receive_MB', 'kpi_container_network_transmit_packets', 'kpi_container_network_transmit_MB', '<intensity>; type: upstream', '<intensity>; type: current', '<intensity>; type: downstream', '<duration>; type: upstream', '<duration>; type: current', '<duration>; type: downstream']
+POD_NETWORK_METRICS = [
+    "kpi_container_network_receive_packets",
+    "kpi_container_network_receive_MB",
+    "kpi_container_network_transmit_packets",
+    "kpi_container_network_transmit_MB",
+    "<intensity>; type: upstream",
+    "<intensity>; type: current",
+    "<intensity>; type: downstream",
+    "<duration>; type: upstream",
+    "<duration>; type: current",
+    "<duration>; type: downstream",
+]
 POD_NETWORK_PROMPT = PromptTemplate("""\
 ## Metric Description
 
@@ -216,4 +257,3 @@ Address the following questions sequentially based on the observations. Let's th
 2. Which fault characteristic is most significant and accompanies the entire period of time?
 3. What is the most probable fault type? Or there is 'No fault'? The candidates are 'K8s CPU Load', 'K8s Memory Load', 'K8s Network Delay', 'K8s Network Packet Loss', 'K8s Network Packet Corruption', 'K8s Network Packet Duplication', 'K8s Disk Read IO Load', 'K8s Disk Write IO Load', 'K8s Process Terminated' or 'No fault'. You MUST select the most probable candidate only, or clarify there is 'No fault'.
 """)
-
