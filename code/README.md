@@ -29,6 +29,18 @@ From PowerShell, the current k=0 evaluation entry point is:
 
 The full historical evaluation sequence is defined in `reproduce.sh`. Until the new run wrapper is implemented, redirecting output alone does not satisfy the experiment logging contract because the exact command, exit code, runtime, environment ID, and artifact hashes are not captured together.
 
+Use the logged stage runner for new invocations:
+
+```powershell
+.\.venv\Scripts\python.exe -m experiments.run_stage `
+  --stage evaluate `
+  --runs-dir ..\runs\lasrca `
+  --cwd . `
+  -- .\.venv\Scripts\python.exe .\tasks\las_rca.py --k 0
+```
+
+The runner creates a unique immutable directory and preserves command metadata, stdout, stderr, exit code, timing, runtime environment, and manifest files. Sensitive command and configuration fields such as API keys and tokens are redacted from recorded metadata.
+
 ## Existing evidence
 
 - `../out/20260606.log`
