@@ -198,6 +198,18 @@ def binary_entropy(p):
     return -p * np.log2(p) - (1 - p) * np.log2(1 - p)
 
 
+def filter_edges_to_entities(edge_index, entity_indices):
+    edge_index = np.asarray(edge_index)
+    if edge_index.ndim != 2 or edge_index.shape[0] != 2:
+        raise ValueError("edge_index must have shape (2, edge_count)")
+
+    selected_entities = np.asarray(entity_indices)
+    selected_edges = np.isin(edge_index[0], selected_entities) & np.isin(
+        edge_index[1], selected_entities
+    )
+    return edge_index[:, selected_edges]
+
+
 def get_suspect_unlabeled_samples(
     dataset, probs, neighbor_hop=2, max_ent_per_graph=10, max_samples=100
 ):
@@ -278,28 +290,9 @@ def get_suspect_unlabeled_samples(
             final_related_ent_index_array = final_related_ent_index_array[
                 :max_ent_per_graph
             ]
-            related_ent_edge_index_array = np.unique(
-                np.sort(
-                    related_ent_edge_index_array[
-                        :,
-                        np.where(
-                            np.isin(
-                                related_ent_edge_index_array,
-                                final_related_ent_index_array,
-                            )
-                        )[1],
-                    ],
-                    axis=0,
-                ),
-                axis=1,
-            )
-            related_ent_edge_index_array = related_ent_edge_index_array[
-                :,
-                np.isin(related_ent_edge_index_array[0], final_related_ent_index_array)
-                & np.isin(
-                    related_ent_edge_index_array[0], final_related_ent_index_array
-                ),
-            ]
+        related_ent_edge_index_array = filter_edges_to_entities(
+            related_ent_edge_index_array, final_related_ent_index_array
+        )
         samples.append(
             {
                 "sample_index": sample_index,
