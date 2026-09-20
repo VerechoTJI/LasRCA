@@ -5,6 +5,11 @@ from pathlib import Path
 sys.path.append("E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/code")
 
 from experiments.artifacts import sha256_file
+from experiments.checkpoints import (
+    checkpoint_path,
+    ensure_checkpoint_target_available,
+    resolve_checkpoint_directory,
+)
 from experiments.evaluation_output import (
     build_metric_records,
     resolve_metrics_output_directory,
@@ -218,16 +223,15 @@ class LasRCA(BaseClass):
                 f'[{epoch}/{self.model_config["epochs"]}] | train_loss: {train_loss:.5f}, train_loss_x: {train_loss_x:.5f}, train_loss_i: {train_loss_i:.5f}'
             )
         self.evaluate_las_fault_classification(data_loader, "test")
-        if self.model_config["k"] != 0:
-            torch.save(
-                self.model.state_dict(),
-                f'{self.data_config["model_dir"]}/model_seed_{self.model_config["seed"]}_k_{self.model_config["k"]}_{self.model_config["labeling_strategy"]}.pkl',
-            )
-        else:
-            torch.save(
-                self.model.state_dict(),
-                f'{self.data_config["model_dir"]}/model_seed_{self.model_config["seed"]}_k_{self.model_config["k"]}.pkl',
-            )
+        output_checkpoint = checkpoint_path(
+            self.data_config["model_dir"],
+            seed=self.model_config["seed"],
+            k=self.model_config["k"],
+            labeling_strategy=self.model_config["labeling_strategy"],
+        )
+        ensure_checkpoint_target_available(output_checkpoint)
+        torch.save(self.model.state_dict(), output_checkpoint)
+        self.training_checkpoint_path = output_checkpoint
 
     def mean_evaluate_data_loader(self):
         mean_unlabeled_probs = None
@@ -343,18 +347,13 @@ class LasRCA(BaseClass):
 
     def final_test(self):
         data_loader = self.mix_up_load_data()
-        if self.model_config["k"] != 0:
-            self.model.load_state_dict(
-                torch.load(
-                    f'{self.data_config["model_dir"]}/model_seed_{self.model_config["seed"]}_k_{self.model_config["k"]}_{self.model_config["labeling_strategy"]}.pkl'
-                )
-            )
-        else:
-            self.model.load_state_dict(
-                torch.load(
-                    f'{self.data_config["model_dir"]}/model_seed_{self.model_config["seed"]}_k_{self.model_config["k"]}.pkl'
-                )
-            )
+        input_checkpoint = checkpoint_path(
+            self.data_config["model_dir"],
+            seed=self.model_config["seed"],
+            k=self.model_config["k"],
+            labeling_strategy=self.model_config["labeling_strategy"],
+        )
+        self.model.load_state_dict(torch.load(input_checkpoint))
         self.evaluate_las_fault_localization(data_loader, "test")
         self.evaluate_las_fault_classification(data_loader, "test")
 
@@ -362,6 +361,9 @@ class LasRCA(BaseClass):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     window_size = 9
+    parser.add_argument(
+        "--mode", choices=("evaluate", "train"), default="evaluate"
+    )
     parser.add_argument("--dataset", default="A/metric_trace_log")
     parser.add_argument(
         "--dataset_path",
@@ -421,6 +423,12 @@ if __name__ == "__main__":
         help="Execution environment identifier recorded with metrics.",
     )
     parser.add_argument(
+        "--checkpoint_dir",
+        type=Path,
+        default=None,
+        help="Checkpoint input/output directory. Training may not target released models.",
+    )
+    parser.add_argument(
         "--batch_size", type=int, default=32, help="The batch size (defaults to 8)"
     )
 
@@ -466,13 +474,29 @@ if __name__ == "__main__":
 
     seed_everything(seed=args["seed"])
     args["device"] = device
-    model_dir = f'E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/model/LasRCA/{args["dataset"]}'
-    os.makedirs(model_dir, exist_ok=True)
+    released_model_dir = Path(
+        f'E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/model/LasRCA/{args["dataset"]}'
+    )
+    model_dir = resolve_checkpoint_directory(
+        args["mode"], released_model_dir, args["checkpoint_dir"], os.environ
+    )
+    if args["mode"] == "train":
+        model_dir.mkdir(parents=True, exist_ok=True)
+        ensure_checkpoint_target_available(
+            checkpoint_path(
+                model_dir,
+                seed=args["seed"],
+                k=args["k"],
+                labeling_strategy=args["labeling_strategy"],
+            )
+        )
+    elif not model_dir.is_dir():
+        raise FileNotFoundError(f"checkpoint directory does not exist: {model_dir}")
     test_data_config = {
         "dataset": f'{args["dataset"]}',
         "dataset_path": f'{args["dataset_path"]}',
         "ground_truth_path": f'{args["ground_truth_path"]}',
-        "model_dir": f"{model_dir}",
+        "model_dir": str(model_dir),
         "sample_strategy": args["sample_strategy"],
         "train_size": args["train_size"],
         "valid_size": args["valid_size"],
@@ -480,13 +504,11 @@ if __name__ == "__main__":
         "each_valid_size": args["each_valid_size"],
         "window_size": args["window_size"],
     }
-    # las_rca.train()
-    # las_rca.prepare_prompts()
-    # las_rca.final_test()
-    # las_rca.explanation()
-
-    # las_rca.evaluate_data_loader()
-    # las_rca.mean_evaluate_data_loader()
+    if args["mode"] == "train":
+        las_rca = LasRCA(test_data_config, args)
+        las_rca.train()
+        print(f"training checkpoint: {las_rca.training_checkpoint_path.resolve()}")
+        raise SystemExit(0)
 
     final_dict = dict()
     seed_results = []
@@ -494,17 +516,17 @@ if __name__ == "__main__":
         args["seed"] = seed
         fault_type_classification = LasRCA(test_data_config, args)
         fault_type_classification.final_test()
-        checkpoint_suffix = (
-            f'_k_{args["k"]}_{args["labeling_strategy"]}'
-            if args["k"] != 0
-            else f'_k_{args["k"]}'
+        seed_checkpoint_path = checkpoint_path(
+            model_dir,
+            seed=seed,
+            k=args["k"],
+            labeling_strategy=args["labeling_strategy"],
         )
-        checkpoint_path = Path(model_dir) / f"model_seed_{seed}{checkpoint_suffix}.pkl"
         seed_results.append(
             {
                 "seed": seed,
-                "checkpoint_path": str(checkpoint_path.resolve()),
-                "checkpoint_sha256": sha256_file(checkpoint_path),
+                "checkpoint_path": str(seed_checkpoint_path.resolve()),
+                "checkpoint_sha256": sha256_file(seed_checkpoint_path),
                 "localization": fault_type_classification.fl_result,
                 "classification": fault_type_classification.fc_result,
             }
