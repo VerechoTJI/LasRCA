@@ -3,6 +3,7 @@ import json
 import statistics
 from pathlib import Path
 
+from experiments.artifacts import sha256_file
 from experiments.metrics import LOCALIZATION_METRIC_VERSION
 
 
@@ -21,6 +22,10 @@ IDENTITY_FIELDS = [
     "seed",
     "entity_type",
     "metric_definition_version",
+    "dataset_path",
+    "dataset_sha256",
+    "ground_truth_path",
+    "ground_truth_sha256",
     "checkpoint_path",
     "checkpoint_sha256",
 ]
@@ -34,7 +39,25 @@ def _scalar(value):
     return float(value)
 
 
-def build_metric_records(seed_results, *, dataset, track, method, strategy):
+def resolve_metrics_output_directory(explicit_output, environment):
+    if explicit_output:
+        return Path(explicit_output)
+    run_directory = environment.get("LASRCA_RUN_DIR")
+    return Path(run_directory) / "metrics" if run_directory else None
+
+
+def build_metric_records(
+    seed_results,
+    *,
+    dataset,
+    track,
+    method,
+    strategy,
+    dataset_path,
+    dataset_sha256,
+    ground_truth_path,
+    ground_truth_sha256,
+):
     records = []
     for seed_result in seed_results:
         localization = seed_result["localization"]
@@ -48,6 +71,10 @@ def build_metric_records(seed_results, *, dataset, track, method, strategy):
                 "seed": int(seed_result["seed"]),
                 "entity_type": entity_type,
                 "metric_definition_version": LOCALIZATION_METRIC_VERSION,
+                "dataset_path": str(dataset_path),
+                "dataset_sha256": dataset_sha256,
+                "ground_truth_path": str(ground_truth_path),
+                "ground_truth_sha256": ground_truth_sha256,
                 "checkpoint_path": str(seed_result["checkpoint_path"]),
                 "checkpoint_sha256": seed_result["checkpoint_sha256"],
             }

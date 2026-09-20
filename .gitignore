@@ -3,6 +3,7 @@
 model/
 temp_data/
 out/
+runs/
 __pycache__/
 *.py[cod]
 *$py.class

@@ -1,7 +1,16 @@
+import os
 import sys
+from pathlib import Path
 
 sys.path.append("E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/code")
 
+from experiments.artifacts import sha256_file
+from experiments.evaluation_output import (
+    build_metric_records,
+    resolve_metrics_output_directory,
+    summarize_metric_records,
+    write_evaluation_outputs,
+)
 from tasks.base import *
 import argparse
 from shared_util.seed import *
@@ -396,6 +405,17 @@ if __name__ == "__main__":
         help="The maximum allowed number of threads used by this process",
     )
     parser.add_argument(
+        "--metrics_output_dir",
+        type=Path,
+        default=None,
+        help="Write structured evaluation metrics here; existing files are never overwritten.",
+    )
+    parser.add_argument(
+        "--track",
+        default="released-artifact",
+        help="Provenance label for the evaluated checkpoints.",
+    )
+    parser.add_argument(
         "--batch_size", type=int, default=32, help="The batch size (defaults to 8)"
     )
 
@@ -455,7 +475,6 @@ if __name__ == "__main__":
         "each_valid_size": args["each_valid_size"],
         "window_size": args["window_size"],
     }
-    las_rca = LasRCA(test_data_config, args)
     # las_rca.train()
     # las_rca.prepare_prompts()
     # las_rca.final_test()
@@ -465,10 +484,26 @@ if __name__ == "__main__":
     # las_rca.mean_evaluate_data_loader()
 
     final_dict = dict()
+    seed_results = []
     for seed in [405, 406, 407, 408, 409]:
         args["seed"] = seed
         fault_type_classification = LasRCA(test_data_config, args)
         fault_type_classification.final_test()
+        checkpoint_suffix = (
+            f'_k_{args["k"]}_{args["labeling_strategy"]}'
+            if args["k"] != 0
+            else f'_k_{args["k"]}'
+        )
+        checkpoint_path = Path(model_dir) / f"model_seed_{seed}{checkpoint_suffix}.pkl"
+        seed_results.append(
+            {
+                "seed": seed,
+                "checkpoint_path": str(checkpoint_path.resolve()),
+                "checkpoint_sha256": sha256_file(checkpoint_path),
+                "localization": fault_type_classification.fl_result,
+                "classification": fault_type_classification.fc_result,
+            }
+        )
         for result in [
             fault_type_classification.fl_result,
             fault_type_classification.fc_result,
@@ -496,3 +531,30 @@ if __name__ == "__main__":
             print(
                 f"{ent_type} | {em} | mean: {np.mean(final_dict[ent_type][em])}; std: {np.std(final_dict[ent_type][em])}"
             )
+
+    metrics_output_directory = resolve_metrics_output_directory(
+        args["metrics_output_dir"], os.environ
+    )
+    if metrics_output_directory is not None:
+        data_base_path = Path(fault_type_classification.base_path)
+        dataset_path = (data_base_path / args["dataset_path"]).resolve()
+        ground_truth_path = (data_base_path / args["ground_truth_path"]).resolve()
+        strategy = (
+            "one-shot-k0"
+            if args["k"] == 0
+            else f'{args["labeling_strategy"]}-k{args["k"]}'
+        )
+        records = build_metric_records(
+            seed_results,
+            dataset=args["dataset"],
+            track=args["track"],
+            method="LasRCA",
+            strategy=strategy,
+            dataset_path=dataset_path,
+            dataset_sha256=sha256_file(dataset_path),
+            ground_truth_path=ground_truth_path,
+            ground_truth_sha256=sha256_file(ground_truth_path),
+        )
+        summary = summarize_metric_records(records)
+        write_evaluation_outputs(metrics_output_directory, records, summary)
+        print(f"structured metrics: {metrics_output_directory.resolve()}")

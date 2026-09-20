@@ -4,8 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from experiments.artifacts import sha256_file
 from experiments.evaluation_output import (
     build_metric_records,
+    resolve_metrics_output_directory,
     summarize_metric_records,
     write_evaluation_outputs,
 )
@@ -74,6 +76,10 @@ class EvaluationOutputTests(unittest.TestCase):
             track="released-artifact",
             method="LasRCA",
             strategy="one-shot-k0",
+            dataset_path="dataset.pkl",
+            dataset_sha256="c" * 64,
+            ground_truth_path="ground-truth.pkl",
+            ground_truth_sha256="d" * 64,
         )
 
         self.assertEqual(len(records), 2)
@@ -81,6 +87,7 @@ class EvaluationOutputTests(unittest.TestCase):
         self.assertEqual(records[0]["entity_type"], "service")
         self.assertEqual(records[0]["AC@4"], 0.7)
         self.assertEqual(records[0]["micro_precision_score"], 0.7)
+        self.assertEqual(records[0]["dataset_sha256"], "c" * 64)
         self.assertNotIn("precision_score", records[0])
 
     def test_summarizes_mean_and_population_standard_deviation(self):
@@ -90,6 +97,10 @@ class EvaluationOutputTests(unittest.TestCase):
             track="released-artifact",
             method="LasRCA",
             strategy="one-shot-k0",
+            dataset_path="dataset.pkl",
+            dataset_sha256="c" * 64,
+            ground_truth_path="ground-truth.pkl",
+            ground_truth_sha256="d" * 64,
         )
 
         summary = summarize_metric_records(records)
@@ -106,6 +117,10 @@ class EvaluationOutputTests(unittest.TestCase):
             track="released-artifact",
             method="LasRCA",
             strategy="one-shot-k0",
+            dataset_path="dataset.pkl",
+            dataset_sha256="c" * 64,
+            ground_truth_path="ground-truth.pkl",
+            ground_truth_sha256="d" * 64,
         )
         summary = summarize_metric_records(records)
 
@@ -126,6 +141,30 @@ class EvaluationOutputTests(unittest.TestCase):
 
             with self.assertRaises(FileExistsError):
                 write_evaluation_outputs(output_directory, records, summary)
+
+    def test_resolves_metrics_directory_from_runner_environment(self):
+        output_directory = resolve_metrics_output_directory(
+            None, {"LASRCA_RUN_DIR": "C:/runs/example"}
+        )
+
+        self.assertEqual(output_directory, Path("C:/runs/example") / "metrics")
+
+    def test_explicit_metrics_directory_takes_precedence(self):
+        output_directory = resolve_metrics_output_directory(
+            "C:/explicit/metrics", {"LASRCA_RUN_DIR": "C:/runs/example"}
+        )
+
+        self.assertEqual(output_directory, Path("C:/explicit/metrics"))
+
+    def test_hashes_input_artifacts(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            artifact = Path(temporary_directory) / "artifact.bin"
+            artifact.write_bytes(b"abc")
+
+            self.assertEqual(
+                sha256_file(artifact),
+                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            )
 
 
 if __name__ == "__main__":

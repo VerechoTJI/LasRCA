@@ -9,6 +9,8 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from experiments.artifacts import collect_artifacts
+
 
 VALID_STAGES = ("train", "evaluate", "select", "trace")
 REDACTED = "[REDACTED]"
@@ -193,6 +195,14 @@ def execute_logged_command(
         }
     )
     _write_json(run_directory / "manifest.json", manifest)
+    _write_json(
+        run_directory / "artifact_manifest.json",
+        {
+            "artifacts": collect_artifacts(
+                run_directory, excluded_names={"artifact_manifest.json"}
+            )
+        },
+    )
     return run_directory
 
 

@@ -24,6 +24,21 @@ class ExecuteLoggedCommandTests(unittest.TestCase):
             self.assertTrue((run_directory / "timing.json").is_file())
             self.assertTrue((run_directory / "environment.json").is_file())
 
+            artifact_manifest = json.loads(
+                (run_directory / "artifact_manifest.json").read_text()
+            )
+            artifact_paths = {
+                artifact["path"] for artifact in artifact_manifest["artifacts"]
+            }
+            self.assertIn("stdout.log", artifact_paths)
+            self.assertIn("manifest.json", artifact_paths)
+            self.assertTrue(
+                all(
+                    len(artifact["sha256"]) == 64
+                    for artifact in artifact_manifest["artifacts"]
+                )
+            )
+
             manifest = json.loads((run_directory / "manifest.json").read_text())
             self.assertEqual(manifest["stage"], "evaluate")
             self.assertEqual(manifest["environment_id"], "primary-windows")
