@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from pathlib import Path
 
 sys.path.append("E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/code")
@@ -15,6 +16,11 @@ from experiments.evaluation_output import (
     resolve_metrics_output_directory,
     summarize_metric_records,
     write_evaluation_outputs,
+)
+from experiments.training_output import (
+    ensure_training_output_available,
+    make_epoch_record,
+    write_training_outputs,
 )
 from tasks.base import *
 import argparse
@@ -84,12 +90,19 @@ class LasRCA(BaseClass):
         :param data_loader:
         :return:
         """
+        self.training_history = []
+        training_started = time.monotonic()
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats(self.model_config["device"])
+
         labeled_train_iter = iter(data_loader["train"])
         iter_labeled_train_iter = data_loader["iter_labeled"]
         if iter_labeled_train_iter is not None:
             iter_labeled_train_iter = iter(data_loader["iter_labeled"])
 
         for epoch in range(self.model_config["epochs"]):
+            epoch_started = time.monotonic()
+            learning_rate = self.optimizer.param_groups[0]["lr"]
             self.model.train()
             train_loss, train_loss_x, train_loss_i = 0, 0, 0
             for batch_id in range(len(data_loader["train"])):
@@ -219,9 +232,30 @@ class LasRCA(BaseClass):
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
+            labeled_loss = (
+                train_loss_x.detach().cpu().item()
+                if torch.is_tensor(train_loss_x)
+                else float(train_loss_x)
+            )
+            iterative_loss = (
+                train_loss_i.detach().cpu().item()
+                if torch.is_tensor(train_loss_i)
+                else float(train_loss_i)
+            )
+            self.training_history.append(
+                make_epoch_record(
+                    epoch=epoch,
+                    total_loss=train_loss,
+                    labeled_loss=labeled_loss,
+                    iterative_loss=iterative_loss,
+                    learning_rate=learning_rate,
+                    duration_seconds=time.monotonic() - epoch_started,
+                )
+            )
             logger.info(
                 f'[{epoch}/{self.model_config["epochs"]}] | train_loss: {train_loss:.5f}, train_loss_x: {train_loss_x:.5f}, train_loss_i: {train_loss_i:.5f}'
             )
+        self.evaluate_las_fault_localization(data_loader, "test")
         self.evaluate_las_fault_classification(data_loader, "test")
         output_checkpoint = checkpoint_path(
             self.data_config["model_dir"],
@@ -232,6 +266,12 @@ class LasRCA(BaseClass):
         ensure_checkpoint_target_available(output_checkpoint)
         torch.save(self.model.state_dict(), output_checkpoint)
         self.training_checkpoint_path = output_checkpoint
+        self.training_duration_seconds = time.monotonic() - training_started
+        self.peak_gpu_memory_bytes = (
+            int(torch.cuda.max_memory_allocated(self.model_config["device"]))
+            if torch.cuda.is_available()
+            else 0
+        )
 
     def mean_evaluate_data_loader(self):
         mean_unlabeled_probs = None
@@ -390,6 +430,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--seed", type=int, default=409, help="Random seed for deterministic"
     )
+    parser.add_argument(
+        "--eval_seeds",
+        type=int,
+        nargs="+",
+        default=[405, 406, 407, 408, 409],
+        help="Checkpoint seeds evaluated in evaluate mode.",
+    )
     parser.add_argument("--k", type=int, default=1, help="The k-th retraining.")
     parser.add_argument(
         "--labeling_strategy", type=str, default="GPT4", help="random_labeling_24"
@@ -505,14 +552,56 @@ if __name__ == "__main__":
         "window_size": args["window_size"],
     }
     if args["mode"] == "train":
+        training_metrics_directory = resolve_metrics_output_directory(
+            args["metrics_output_dir"], os.environ
+        )
+        if training_metrics_directory is None:
+            raise ValueError(
+                "training requires a run-scoped metrics directory; use the stage "
+                "runner or --metrics_output_dir"
+            )
+        ensure_training_output_available(training_metrics_directory)
         las_rca = LasRCA(test_data_config, args)
         las_rca.train()
+        data_base_path = Path(las_rca.base_path)
+        dataset_path = (data_base_path / args["dataset_path"]).resolve()
+        ground_truth_path = (data_base_path / args["ground_truth_path"]).resolve()
+        training_summary = {
+            "environment_id": os.environ.get(
+                "LASRCA_ENVIRONMENT_ID", args["environment_id"]
+            ),
+            "run_id": os.environ.get("LASRCA_RUN_ID", "standalone"),
+            "dataset": args["dataset"],
+            "track": args["track"],
+            "strategy": "one-shot-k0"
+            if args["k"] == 0
+            else f'{args["labeling_strategy"]}-k{args["k"]}',
+            "seed": args["seed"],
+            "requested_epochs": args["epochs"],
+            "completed_epochs": len(las_rca.training_history),
+            "duration_seconds": las_rca.training_duration_seconds,
+            "peak_gpu_memory_bytes": las_rca.peak_gpu_memory_bytes,
+            "checkpoint_path": str(las_rca.training_checkpoint_path.resolve()),
+            "checkpoint_sha256": sha256_file(las_rca.training_checkpoint_path),
+            "dataset_path": str(dataset_path),
+            "dataset_sha256": sha256_file(dataset_path),
+            "ground_truth_path": str(ground_truth_path),
+            "ground_truth_sha256": sha256_file(ground_truth_path),
+            "localization": las_rca.fl_result,
+            "classification": las_rca.fc_result,
+        }
+        write_training_outputs(
+            training_metrics_directory,
+            las_rca.training_history,
+            training_summary,
+        )
         print(f"training checkpoint: {las_rca.training_checkpoint_path.resolve()}")
+        print(f"structured metrics: {training_metrics_directory.resolve()}")
         raise SystemExit(0)
 
     final_dict = dict()
     seed_results = []
-    for seed in [405, 406, 407, 408, 409]:
+    for seed in args["eval_seeds"]:
         args["seed"] = seed
         fault_type_classification = LasRCA(test_data_config, args)
         fault_type_classification.final_test()
