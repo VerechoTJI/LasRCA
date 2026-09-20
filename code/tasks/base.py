@@ -1,6 +1,12 @@
 import copy
+import json
 from abc import ABC
+from pathlib import Path
 from experiments.metrics import compute_localization_metrics
+from experiments.trace_preprocessing import (
+    apply_stored_percentile_clipping,
+    apply_zero_iqr_std_fallback,
+)
 from sklearn.model_selection import train_test_split
 from shared_util.seed import *
 from tasks.eval import evaluate_ftc
@@ -24,6 +30,41 @@ class BaseClass(ABC):
         self.dataset = {"meta_data": ..., "data": dict()}
         self.model = ...
         self.prepare_dataset()
+        self.trace_preprocessing = {
+            "zero_iqr_fallback": self.model_config.get(
+                "trace_zero_iqr_fallback", "none"
+            ),
+            "percentile_clip": self.model_config.get(
+                "trace_percentile_clip", "none"
+            ),
+            "transformed_features": [],
+            "clipped_value_count": 0,
+        }
+        if (
+            self.trace_preprocessing["zero_iqr_fallback"] == "std"
+            or self.trace_preprocessing["percentile_clip"] == "stored-1-99"
+        ):
+            statistics_path = Path(self.model_config["trace_statistics_path"])
+            if not statistics_path.is_absolute():
+                statistics_path = Path(self.base_path) / statistics_path
+            statistics = json.loads(statistics_path.read_text(encoding="utf-8"))
+            self.trace_preprocessing["statistics_path"] = str(
+                statistics_path.resolve()
+            )
+            if self.trace_preprocessing["zero_iqr_fallback"] == "std":
+                self.trace_preprocessing["transformed_features"] = (
+                    apply_zero_iqr_std_fallback(self.dataset, statistics)
+                )
+            if self.trace_preprocessing["percentile_clip"] == "stored-1-99":
+                self.trace_preprocessing["clipped_value_count"] = (
+                    apply_stored_percentile_clipping(
+                        self.dataset,
+                        statistics,
+                        zero_iqr_fallback=self.trace_preprocessing[
+                            "zero_iqr_fallback"
+                        ],
+                    )
+                )
         o11y_representation_learning = RepresentationLearning(
             model_config, self.dataset["meta_data"]
         )

@@ -11,7 +11,10 @@ def seed_everything(seed=rca_seed):
     seed = int(seed)
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
-    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':16:8'
+    # PyTorch accepts two deterministic cuBLAS workspace layouts.  Large
+    # Transformer GEMMs exceed the smaller layout and otherwise emit a
+    # workspace-limit warning, so use the larger deterministic configuration.
+    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)

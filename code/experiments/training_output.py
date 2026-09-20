@@ -33,8 +33,13 @@ def make_epoch_record(
     }
     if record["epoch"] < 0:
         raise ValueError("epoch must be non-negative")
-    if not all(math.isfinite(record[field]) for field in EPOCH_FIELDS[1:]):
-        raise ValueError("training metrics must be finite")
+    non_finite = [
+        f"{field}={record[field]}"
+        for field in EPOCH_FIELDS[1:]
+        if not math.isfinite(record[field])
+    ]
+    if non_finite:
+        raise ValueError(f"non-finite training metrics: {', '.join(non_finite)}")
     return record
 
 

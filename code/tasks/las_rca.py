@@ -22,6 +22,10 @@ from experiments.training_output import (
     make_epoch_record,
     write_training_outputs,
 )
+from experiments.training_diagnostics import (
+    ensure_finite_tensor,
+    non_finite_parameter_names,
+)
 from tasks.base import *
 import argparse
 from shared_util.seed import *
@@ -191,6 +195,13 @@ class LasRCA(BaseClass):
                     ent_type: value.view(-1, ent_index_dict[ent_type], value.size(1))
                     for ent_type, value in mix_pred.items()
                 }
+                for ent_type, prediction in mix_pred.items():
+                    ensure_finite_tensor(
+                        f"labeled_prediction[{ent_type}]",
+                        prediction,
+                        epoch=epoch,
+                        batch=batch_id,
+                    )
 
                 i_pred = ...
                 if iter_labeled_train_iter is not None:
@@ -209,6 +220,12 @@ class LasRCA(BaseClass):
                         mix_pred[ent_type].view(-1, mix_pred[ent_type].shape[2]),
                         mix_y[ent_type].view(-1, mix_y[ent_type].shape[2]),
                     )
+                    ensure_finite_tensor(
+                        f"labeled_loss[{ent_type}]",
+                        temp_loss,
+                        epoch=epoch,
+                        batch=batch_id,
+                    )
                     loss_x += temp_loss
 
                     # L_u
@@ -222,15 +239,42 @@ class LasRCA(BaseClass):
                             )
                             * mask_dict[ent_type]
                         ).mean()
+                        ensure_finite_tensor(
+                            f"iterative_loss[{ent_type}]",
+                            temp_loss,
+                            epoch=epoch,
+                            batch=batch_id,
+                        )
                         loss_i += temp_loss
 
                 loss = loss_x + loss_i
+                ensure_finite_tensor(
+                    "total_loss", loss, epoch=epoch, batch=batch_id
+                )
                 train_loss += loss.item()
                 train_loss_x += loss_x
                 train_loss_i += loss_i
 
                 loss.backward()
+                non_finite_gradients = non_finite_parameter_names(
+                    self.model, inspect_gradients=True
+                )
+                if non_finite_gradients:
+                    raise FloatingPointError(
+                        "non-finite gradients: "
+                        f"epoch={epoch}, batch={batch_id}, "
+                        f"parameters={non_finite_gradients}"
+                    )
                 self.optimizer.step()
+                non_finite_parameters = non_finite_parameter_names(
+                    self.model, inspect_gradients=False
+                )
+                if non_finite_parameters:
+                    raise FloatingPointError(
+                        "non-finite parameters after optimizer step: "
+                        f"epoch={epoch}, batch={batch_id}, "
+                        f"parameters={non_finite_parameters}"
+                    )
             self.scheduler.step()
             labeled_loss = (
                 train_loss_x.detach().cpu().item()
@@ -482,6 +526,26 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=500, help="The number of epochs")
     parser.add_argument("--lr", default=0.0001, type=float)
     parser.add_argument("--weight_decay", default=0.001, type=float)
+    parser.add_argument(
+        "--trace_zero_iqr_fallback",
+        choices=("none", "std"),
+        default="none",
+        help=(
+            "Use the stored standard deviation for sparse trace features that "
+            "the source IQR preprocessor left unscaled."
+        ),
+    )
+    parser.add_argument(
+        "--trace_statistics_path",
+        default="2022_CCF_AIOps_challenge/analysis/trace/statistic.json",
+        help="Trace statistics path, absolute or relative to the temp_data directory.",
+    )
+    parser.add_argument(
+        "--trace_percentile_clip",
+        choices=("none", "stored-1-99"),
+        default="none",
+        help="Clip trace inputs to the stored 1st/99th percentile boundaries.",
+    )
 
     # MixUp params
     parser.add_argument("--optimizer", default="Adam", help="Adam or SGD")
@@ -566,6 +630,11 @@ if __name__ == "__main__":
         data_base_path = Path(las_rca.base_path)
         dataset_path = (data_base_path / args["dataset_path"]).resolve()
         ground_truth_path = (data_base_path / args["ground_truth_path"]).resolve()
+        trace_preprocessing = dict(las_rca.trace_preprocessing)
+        if "statistics_path" in trace_preprocessing:
+            trace_preprocessing["statistics_sha256"] = sha256_file(
+                trace_preprocessing["statistics_path"]
+            )
         training_summary = {
             "environment_id": os.environ.get(
                 "LASRCA_ENVIRONMENT_ID", args["environment_id"]
@@ -587,6 +656,7 @@ if __name__ == "__main__":
             "dataset_sha256": sha256_file(dataset_path),
             "ground_truth_path": str(ground_truth_path),
             "ground_truth_sha256": sha256_file(ground_truth_path),
+            "trace_preprocessing": trace_preprocessing,
             "localization": las_rca.fl_result,
             "classification": las_rca.fc_result,
         }

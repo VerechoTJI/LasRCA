@@ -25,13 +25,26 @@ class TrainingOutputTests(unittest.TestCase):
         self.assertEqual(record["duration_seconds"], 4.25)
 
     def test_epoch_record_rejects_non_finite_loss(self):
-        with self.assertRaisesRegex(ValueError, "finite"):
+        with self.assertRaisesRegex(ValueError, "total_loss=nan"):
             make_epoch_record(
                 epoch=0,
                 total_loss=float("nan"),
                 labeled_loss=1.0,
                 iterative_loss=0.0,
                 learning_rate=0.0001,
+                duration_seconds=1.0,
+            )
+
+    def test_epoch_record_names_every_non_finite_metric(self):
+        with self.assertRaisesRegex(
+            ValueError, "labeled_loss=inf, learning_rate=-inf"
+        ):
+            make_epoch_record(
+                epoch=3,
+                total_loss=1.0,
+                labeled_loss=float("inf"),
+                iterative_loss=0.0,
+                learning_rate=float("-inf"),
                 duration_seconds=1.0,
             )
 
