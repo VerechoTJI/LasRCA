@@ -55,6 +55,26 @@ The canonical released one-shot evaluation run is:
 
 It completed seeds 405–409 with exit code 0. The released checkpoint modification times remained unchanged.
 
+Run-scoped smoke training uses the same wrapper and cannot target the released model directory:
+
+```powershell
+.\.venv\Scripts\python.exe -m experiments.run_stage `
+  --stage train `
+  --runs-dir ..\runs\lasrca `
+  --cwd . `
+  -- .\.venv\Scripts\python.exe .\tasks\las_rca.py `
+     --mode train --k 0 --seed 405 --epochs 1 --track local-smoke
+```
+
+Training writes its checkpoint under the immutable run's `checkpoints/` directory and records epoch loss, learning rate, epoch/runtime duration, peak GPU memory, checkpoint SHA256, input hashes, and final metrics under `metrics/`. Existing checkpoint and metrics targets are rejected rather than overwritten.
+
+The verified smoke and reload runs are:
+
+- `../runs/lasrca/20260921-033650+0800_train_2edae6766149/`
+- `../runs/lasrca/20260921-033753+0800_evaluate_b1eeb4087cf3/`
+
+The one-epoch smoke loss was finite, and the reloaded checkpoint reproduced every saved localization/classification metric with a maximum absolute difference of zero.
+
 ## Existing evidence
 
 - `../out/20260606.log`
@@ -65,4 +85,4 @@ Both 2026-06-06 logs reach the final aggregate output without a recorded Traceba
 
 ## Next implementation boundary
 
-The immutable runner, complete localization metrics, structured per-seed exports, and dangling-edge regression fix are implemented. The next code increment is explicit `train`, `evaluate`, `select`, and `trace` modes with run-scoped checkpoint output, followed by seed 405 smoke training before the five-seed full training series.
+The immutable runner, complete localization metrics, structured per-seed exports, safe `train`/`evaluate` modes, run-scoped checkpoints, training evidence, and dangling-edge regression fix are implemented. The next code increment is safe run-scoped `select` and `trace` modes, followed by the five-seed full training series.
