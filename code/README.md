@@ -27,7 +27,7 @@ From PowerShell, the current k=0 evaluation entry point is:
 .\.venv\Scripts\python.exe .\tasks\las_rca.py --k 0
 ```
 
-The full historical evaluation sequence is defined in `reproduce.sh`. Until the new run wrapper is implemented, redirecting output alone does not satisfy the experiment logging contract because the exact command, exit code, runtime, environment ID, and artifact hashes are not captured together.
+The full historical evaluation sequence is defined in `reproduce.sh`. Redirecting output alone does not satisfy the experiment logging contract because the exact command, exit code, runtime, environment ID, and artifact hashes must be captured together.
 
 Use the logged stage runner for new invocations:
 
@@ -39,7 +39,21 @@ Use the logged stage runner for new invocations:
   -- .\.venv\Scripts\python.exe .\tasks\las_rca.py --k 0
 ```
 
-The runner creates a unique immutable directory and preserves command metadata, stdout, stderr, exit code, timing, runtime environment, and manifest files. Sensitive command and configuration fields such as API keys and tokens are redacted from recorded metadata.
+The runner creates a unique immutable directory and preserves command metadata, stdout, stderr, exit code, timing, runtime environment, and manifest files. Sensitive command and configuration fields such as API keys and tokens are redacted from recorded metadata. It passes the immutable run ID and environment ID to the evaluation process, which writes the following files without overwriting existing output:
+
+- `metrics/per_seed_metrics.json` and `.csv`
+- `metrics/summary.json` and `.csv`
+- `artifact_manifest.json` with size and SHA256 for every run artifact
+
+Each per-seed row includes AC@1 through AC@5, Avg@5, micro/macro Precision/Recall/F1, checkpoint identity, dataset identity, environment ID, and run ID. Avg@5 is the arithmetic mean of AC@1 through AC@5.
+
+The canonical released one-shot evaluation run is:
+
+```text
+../runs/lasrca/20260921-033023+0800_evaluate_3090cfbfad7f/
+```
+
+It completed seeds 405–409 with exit code 0. The released checkpoint modification times remained unchanged.
 
 ## Existing evidence
 
@@ -51,10 +65,4 @@ Both 2026-06-06 logs reach the final aggregate output without a recorded Traceba
 
 ## Next implementation boundary
 
-Code changes after the baseline commit will be split into small verified increments:
-
-1. Add explicit `train`, `evaluate`, `select`, and `trace` modes without changing default evaluation results.
-2. Add immutable run directories and structured logging described in `../docs/logging_contract.md`.
-3. Add metric tests and structured per-seed exports.
-4. Reproduce and fix the selection dangling-edge bug with a failing test first.
-5. Run seed 405 smoke training before starting the five-seed full training series.
+The immutable runner, complete localization metrics, structured per-seed exports, and dangling-edge regression fix are implemented. The next code increment is explicit `train`, `evaluate`, `select`, and `trace` modes with run-scoped checkpoint output, followed by seed 405 smoke training before the five-seed full training series.
