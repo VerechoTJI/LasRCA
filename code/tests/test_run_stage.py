@@ -93,6 +93,26 @@ class ExecuteLoggedCommandTests(unittest.TestCase):
             self.assertNotIn("configuration-secret", combined_evidence)
             self.assertIn("[REDACTED]", combined_evidence)
 
+    def test_child_process_receives_immutable_run_directory(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_directory = execute_logged_command(
+                base_directory=Path(temporary_directory),
+                stage="evaluate",
+                command=[
+                    sys.executable,
+                    "-c",
+                    (
+                        "import os, pathlib; "
+                        "p = pathlib.Path(os.environ['LASRCA_RUN_DIR']); "
+                        "(p / 'metrics' / 'child.txt').write_text(str(p))"
+                    ),
+                ],
+                environment={"environment_id": "primary-windows"},
+            )
+
+            child_value = (run_directory / "metrics" / "child.txt").read_text()
+            self.assertEqual(Path(child_value), run_directory)
+
 
 if __name__ == "__main__":
     unittest.main()

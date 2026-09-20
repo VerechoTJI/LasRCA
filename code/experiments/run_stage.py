@@ -147,12 +147,20 @@ def execute_logged_command(
     stdout_path = run_directory / "stdout.log"
     stderr_path = run_directory / "stderr.log"
     try:
+        child_environment = os.environ.copy()
+        child_environment.update(
+            {
+                "LASRCA_RUN_DIR": str(run_directory.resolve()),
+                "LASRCA_STAGE": stage,
+            }
+        )
         with stdout_path.open("w", encoding="utf-8") as stdout_file, stderr_path.open(
             "w", encoding="utf-8"
         ) as stderr_file:
             completed_process = subprocess.run(
                 normalized_command,
                 cwd=working_directory,
+                env=child_environment,
                 stdout=stdout_file,
                 stderr=stderr_file,
                 text=True,
