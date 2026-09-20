@@ -76,6 +76,8 @@ class EvaluationOutputTests(unittest.TestCase):
             track="released-artifact",
             method="LasRCA",
             strategy="one-shot-k0",
+            environment_id="primary-windows",
+            run_id="run-123",
             dataset_path="dataset.pkl",
             dataset_sha256="c" * 64,
             ground_truth_path="ground-truth.pkl",
@@ -84,6 +86,8 @@ class EvaluationOutputTests(unittest.TestCase):
 
         self.assertEqual(len(records), 2)
         self.assertEqual(records[0]["seed"], 405)
+        self.assertEqual(records[0]["environment_id"], "primary-windows")
+        self.assertEqual(records[0]["run_id"], "run-123")
         self.assertEqual(records[0]["entity_type"], "service")
         self.assertEqual(records[0]["AC@4"], 0.7)
         self.assertEqual(records[0]["micro_precision_score"], 0.7)
@@ -97,6 +101,8 @@ class EvaluationOutputTests(unittest.TestCase):
             track="released-artifact",
             method="LasRCA",
             strategy="one-shot-k0",
+            environment_id="primary-windows",
+            run_id="run-123",
             dataset_path="dataset.pkl",
             dataset_sha256="c" * 64,
             ground_truth_path="ground-truth.pkl",
@@ -117,6 +123,8 @@ class EvaluationOutputTests(unittest.TestCase):
             track="released-artifact",
             method="LasRCA",
             strategy="one-shot-k0",
+            environment_id="primary-windows",
+            run_id="run-123",
             dataset_path="dataset.pkl",
             dataset_sha256="c" * 64,
             ground_truth_path="ground-truth.pkl",

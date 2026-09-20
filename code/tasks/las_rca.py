@@ -416,6 +416,11 @@ if __name__ == "__main__":
         help="Provenance label for the evaluated checkpoints.",
     )
     parser.add_argument(
+        "--environment_id",
+        default="primary-windows",
+        help="Execution environment identifier recorded with metrics.",
+    )
+    parser.add_argument(
         "--batch_size", type=int, default=32, help="The batch size (defaults to 8)"
     )
 
@@ -550,6 +555,10 @@ if __name__ == "__main__":
             track=args["track"],
             method="LasRCA",
             strategy=strategy,
+            environment_id=os.environ.get(
+                "LASRCA_ENVIRONMENT_ID", args["environment_id"]
+            ),
+            run_id=os.environ.get("LASRCA_RUN_ID", "standalone"),
             dataset_path=dataset_path,
             dataset_sha256=sha256_file(dataset_path),
             ground_truth_path=ground_truth_path,

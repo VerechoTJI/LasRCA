@@ -15,6 +15,8 @@ CLASSIFICATION_FIELDS = [
 ]
 METRIC_FIELDS = LOCALIZATION_FIELDS + CLASSIFICATION_FIELDS
 IDENTITY_FIELDS = [
+    "environment_id",
+    "run_id",
     "dataset",
     "track",
     "method",
@@ -53,6 +55,8 @@ def build_metric_records(
     track,
     method,
     strategy,
+    environment_id,
+    run_id,
     dataset_path,
     dataset_sha256,
     ground_truth_path,
@@ -64,6 +68,8 @@ def build_metric_records(
         classification = seed_result["classification"]
         for entity_type in localization:
             record = {
+                "environment_id": environment_id,
+                "run_id": run_id,
                 "dataset": dataset,
                 "track": track,
                 "method": method,
@@ -97,7 +103,15 @@ def build_metric_records(
 
 def summarize_metric_records(records):
     groups = {}
-    group_fields = ["dataset", "track", "method", "strategy", "entity_type"]
+    group_fields = [
+        "environment_id",
+        "run_id",
+        "dataset",
+        "track",
+        "method",
+        "strategy",
+        "entity_type",
+    ]
     for record in records:
         group_key = tuple(record[field] for field in group_fields)
         for metric in METRIC_FIELDS:
@@ -151,6 +165,8 @@ def write_evaluation_outputs(output_directory, records, summary):
     )
     _write_json_exclusive(paths["summary_json"], summary)
     summary_fields = [
+        "environment_id",
+        "run_id",
         "dataset",
         "track",
         "method",

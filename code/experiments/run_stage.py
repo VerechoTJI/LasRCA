@@ -153,7 +153,9 @@ def execute_logged_command(
         child_environment.update(
             {
                 "LASRCA_RUN_DIR": str(run_directory.resolve()),
+                "LASRCA_RUN_ID": run_id,
                 "LASRCA_STAGE": stage,
+                "LASRCA_ENVIRONMENT_ID": environment["environment_id"],
             }
         )
         with stdout_path.open("w", encoding="utf-8") as stdout_file, stderr_path.open(

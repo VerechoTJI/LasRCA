@@ -119,14 +119,20 @@ class ExecuteLoggedCommandTests(unittest.TestCase):
                     (
                         "import os, pathlib; "
                         "p = pathlib.Path(os.environ['LASRCA_RUN_DIR']); "
-                        "(p / 'metrics' / 'child.txt').write_text(str(p))"
+                        "value = '|'.join([str(p), os.environ['LASRCA_RUN_ID'], "
+                        "os.environ['LASRCA_ENVIRONMENT_ID']]); "
+                        "(p / 'metrics' / 'child.txt').write_text(value)"
                     ),
                 ],
                 environment={"environment_id": "primary-windows"},
             )
 
-            child_value = (run_directory / "metrics" / "child.txt").read_text()
-            self.assertEqual(Path(child_value), run_directory)
+            child_path, child_run_id, child_environment_id = (
+                run_directory / "metrics" / "child.txt"
+            ).read_text().split("|")
+            self.assertEqual(Path(child_path), run_directory)
+            self.assertEqual(child_run_id, run_directory.name.rsplit("_", 1)[-1])
+            self.assertEqual(child_environment_id, "primary-windows")
 
 
 if __name__ == "__main__":
