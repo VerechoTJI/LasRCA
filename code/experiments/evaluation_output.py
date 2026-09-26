@@ -101,6 +101,51 @@ def build_metric_records(
     return records
 
 
+def build_classification_metric_records(
+    seed_results,
+    *,
+    dataset,
+    track,
+    method,
+    strategy,
+    environment_id,
+    run_id,
+    dataset_path,
+    dataset_sha256,
+    ground_truth_path,
+    ground_truth_sha256,
+):
+    """Build per-seed records when a method has no localization output."""
+    records = []
+    for seed_result in seed_results:
+        for entity_type, classification in seed_result["classification"].items():
+            record = {
+                "environment_id": environment_id,
+                "run_id": run_id,
+                "dataset": dataset,
+                "track": track,
+                "method": method,
+                "strategy": strategy,
+                "seed": int(seed_result["seed"]),
+                "entity_type": entity_type,
+                "metric_definition_version": LOCALIZATION_METRIC_VERSION,
+                "dataset_path": str(dataset_path),
+                "dataset_sha256": dataset_sha256,
+                "ground_truth_path": str(ground_truth_path),
+                "ground_truth_sha256": ground_truth_sha256,
+                "checkpoint_path": str(seed_result["checkpoint_path"]),
+                "checkpoint_sha256": seed_result["checkpoint_sha256"],
+            }
+            record.update(
+                {
+                    field: _scalar(classification[field])
+                    for field in CLASSIFICATION_FIELDS
+                }
+            )
+            records.append(record)
+    return records
+
+
 def summarize_metric_records(records):
     groups = {}
     group_fields = [
@@ -115,7 +160,10 @@ def summarize_metric_records(records):
     for record in records:
         group_key = tuple(record[field] for field in group_fields)
         for metric in METRIC_FIELDS:
-            groups.setdefault((group_key, metric), []).append(float(record[metric]))
+            if metric in record:
+                groups.setdefault((group_key, metric), []).append(
+                    float(record[metric])
+                )
 
     summary = []
     for (group_key, metric), values in sorted(groups.items()):

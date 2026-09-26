@@ -6,6 +6,7 @@ from pathlib import Path
 
 from experiments.artifacts import sha256_file
 from experiments.evaluation_output import (
+    build_classification_metric_records,
     build_metric_records,
     resolve_metrics_output_directory,
     summarize_metric_records,
@@ -93,6 +94,117 @@ class EvaluationOutputTests(unittest.TestCase):
         self.assertEqual(records[0]["micro_precision_score"], 0.7)
         self.assertEqual(records[0]["dataset_sha256"], "c" * 64)
         self.assertNotIn("precision_score", records[0])
+
+    def test_builds_and_summarizes_classification_only_records(self):
+        seed_results = [
+            {
+                "seed": 405,
+                "checkpoint_path": "model_seed_405.pkl",
+                "checkpoint_sha256": "a" * 64,
+                "classification": {
+                    "pod": {
+                        "micro_precision_score": ["0.7"],
+                        "macro_precision_score": ["0.6"],
+                        "micro_recall_score": ["0.5"],
+                        "macro_recall_score": ["0.4"],
+                        "micro_f1_score": ["0.3"],
+                        "macro_f1_score": ["0.2"],
+                    }
+                },
+            },
+            {
+                "seed": 406,
+                "checkpoint_path": "model_seed_406.pkl",
+                "checkpoint_sha256": "b" * 64,
+                "classification": {
+                    "pod": {
+                        "micro_precision_score": ["0.9"],
+                        "macro_precision_score": ["0.8"],
+                        "micro_recall_score": ["0.7"],
+                        "macro_recall_score": ["0.6"],
+                        "micro_f1_score": ["0.5"],
+                        "macro_f1_score": ["0.4"],
+                    }
+                },
+            },
+        ]
+
+        records = build_classification_metric_records(
+            seed_results,
+            dataset="A/metric_trace_log",
+            track="released-artifact",
+            method="Pretrain and Fine-tuning",
+            strategy="classification-only",
+            environment_id="primary-windows",
+            run_id="run-456",
+            dataset_path="dataset.pkl",
+            dataset_sha256="c" * 64,
+            ground_truth_path="ground-truth.pkl",
+            ground_truth_sha256="d" * 64,
+        )
+        summary = summarize_metric_records(records)
+
+        self.assertEqual(len(records), 2)
+        self.assertNotIn("AC@1", records[0])
+        self.assertEqual(records[0]["micro_f1_score"], 0.3)
+        self.assertEqual(
+            {item["metric"] for item in summary},
+            {
+                "micro_precision_score",
+                "macro_precision_score",
+                "micro_recall_score",
+                "macro_recall_score",
+                "micro_f1_score",
+                "macro_f1_score",
+            },
+        )
+        micro_f1 = next(
+            item for item in summary if item["metric"] == "micro_f1_score"
+        )
+        self.assertAlmostEqual(micro_f1["mean"], 0.4)
+        self.assertAlmostEqual(micro_f1["std"], 0.1)
+
+    def test_writes_blank_localization_fields_for_classification_only_records(self):
+        records = build_classification_metric_records(
+            [
+                {
+                    "seed": 405,
+                    "checkpoint_path": "model_seed_405.pkl",
+                    "checkpoint_sha256": "a" * 64,
+                    "classification": {
+                        "pod": {
+                            "micro_precision_score": 0.7,
+                            "macro_precision_score": 0.6,
+                            "micro_recall_score": 0.5,
+                            "macro_recall_score": 0.4,
+                            "micro_f1_score": 0.3,
+                            "macro_f1_score": 0.2,
+                        }
+                    },
+                }
+            ],
+            dataset="A/metric_trace_log",
+            track="released-artifact",
+            method="Pretrain and Fine-tuning",
+            strategy="classification-only",
+            environment_id="primary-windows",
+            run_id="run-789",
+            dataset_path="dataset.pkl",
+            dataset_sha256="c" * 64,
+            ground_truth_path="ground-truth.pkl",
+            ground_truth_sha256="d" * 64,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            output_directory = Path(temporary_directory)
+            write_evaluation_outputs(
+                output_directory, records, summarize_metric_records(records)
+            )
+            with (output_directory / "per_seed_metrics.csv").open(newline="") as f:
+                csv_record = next(csv.DictReader(f))
+
+        self.assertEqual(csv_record["AC@1"], "")
+        self.assertEqual(csv_record["micro_f1_score"], "0.3")
 
     def test_summarizes_mean_and_population_standard_deviation(self):
         records = build_metric_records(
