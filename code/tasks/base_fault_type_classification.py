@@ -1,4 +1,6 @@
+import os
 import sys
+from pathlib import Path
 
 sys.path.append("E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/code")
 
@@ -11,6 +13,13 @@ from torch.utils.data import DataLoader
 import copy
 from collections import deque
 from pprint import pprint
+from experiments.artifacts import sha256_file
+from experiments.evaluation_output import (
+    build_metric_records,
+    resolve_metrics_output_directory,
+    summarize_metric_records,
+    write_evaluation_outputs,
+)
 
 # cd E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/code
 # nohup python -u ./tasks/test/fault_type_classification_with_BCELogisticLoss.py > ./tasks/test/fault_type_classification_with_BCELogisticLoss_mix_up_5_5.log 2>&1 &
@@ -481,6 +490,22 @@ if __name__ == "__main__":
     parser.add_argument("--eff_GAT_out_channels", default=128, type=int)
     parser.add_argument("--eff_GAT_heads", default=2, type=int)
     parser.add_argument("--eff_GAT_dropout", default=0.1, type=float)
+    parser.add_argument(
+        "--metrics_output_dir",
+        type=Path,
+        default=None,
+        help="Write structured evaluation metrics here; existing files are never overwritten.",
+    )
+    parser.add_argument(
+        "--track",
+        default="released-artifact",
+        help="Provenance label for the evaluated checkpoints.",
+    )
+    parser.add_argument(
+        "--environment_id",
+        default="primary-windows",
+        help="Execution environment identifier recorded with metrics.",
+    )
 
     args = parser.parse_args()
 
@@ -510,10 +535,21 @@ if __name__ == "__main__":
     # fault_type_classification.final_test()
 
     final_dict = dict()
+    seed_results = []
     for seed in [405, 406, 407, 408, 409]:
         args["seed"] = seed
         fault_type_classification = BaseFaultTypeClassification(test_data_config, args)
         fault_type_classification.final_test()
+        seed_checkpoint_path = Path(model_dir) / f"model_seed_{seed}.pkl"
+        seed_results.append(
+            {
+                "seed": seed,
+                "checkpoint_path": str(seed_checkpoint_path.resolve()),
+                "checkpoint_sha256": sha256_file(seed_checkpoint_path),
+                "localization": fault_type_classification.fl_result,
+                "classification": fault_type_classification.fc_result,
+            }
+        )
         for result in [
             fault_type_classification.fl_result,
             fault_type_classification.fc_result,
@@ -542,4 +578,29 @@ if __name__ == "__main__":
                 f"{ent_type} | {em} | mean: {np.mean(final_dict[ent_type][em])}; std: {np.std(final_dict[ent_type][em])}"
             )
 
-    ...
+    metrics_output_directory = resolve_metrics_output_directory(
+        args["metrics_output_dir"], os.environ
+    )
+    if metrics_output_directory is not None:
+        data_base_path = Path(fault_type_classification.base_path)
+        dataset_path = (data_base_path / args["dataset_path"]).resolve()
+        ground_truth_path = (data_base_path / args["ground_truth_path"]).resolve()
+        records = build_metric_records(
+            seed_results,
+            dataset=args["dataset"],
+            track=args["track"],
+            method="Semi-Supervised Learning",
+            strategy=args["strategy"],
+            environment_id=os.environ.get(
+                "LASRCA_ENVIRONMENT_ID", args["environment_id"]
+            ),
+            run_id=os.environ.get("LASRCA_RUN_ID", "standalone"),
+            dataset_path=dataset_path,
+            dataset_sha256=sha256_file(dataset_path),
+            ground_truth_path=ground_truth_path,
+            ground_truth_sha256=sha256_file(ground_truth_path),
+        )
+        write_evaluation_outputs(
+            metrics_output_directory, records, summarize_metric_records(records)
+        )
+        print(f"structured metrics: {metrics_output_directory.resolve()}")
