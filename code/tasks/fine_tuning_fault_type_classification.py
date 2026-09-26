@@ -1,4 +1,6 @@
+import os
 import sys
+from pathlib import Path
 
 sys.path.append("E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/code")
 
@@ -18,6 +20,13 @@ import torch
 from torch.utils.data import DataLoader
 import numpy as np
 from sklearn.metrics import precision_recall_curve
+from experiments.artifacts import sha256_file
+from experiments.evaluation_output import (
+    build_classification_metric_records,
+    resolve_metrics_output_directory,
+    summarize_metric_records,
+    write_evaluation_outputs,
+)
 
 
 class DLDataset(Dataset):
@@ -439,6 +448,22 @@ if __name__ == "__main__":
         default=None,
         help="The maximum allowed number of threads used by this process",
     )
+    parser.add_argument(
+        "--metrics_output_dir",
+        type=Path,
+        default=None,
+        help="Write structured evaluation metrics here; existing files are never overwritten.",
+    )
+    parser.add_argument(
+        "--track",
+        default="released-artifact",
+        help="Provenance label for the evaluated checkpoints.",
+    )
+    parser.add_argument(
+        "--environment_id",
+        default="primary-windows",
+        help="Execution environment identifier recorded with metrics.",
+    )
     args = parser.parse_args()
 
     device = init_dl_program(args.gpu, max_threads=args.max_threads)
@@ -468,12 +493,22 @@ if __name__ == "__main__":
     # fault_type_classification.train_based_on_representation()
 
     final_dict = dict()
+    seed_results = []
     for seed in [405, 406, 407, 408, 409]:
         args["seed"] = seed
         fault_type_classification = FineTuningFaultTypeClassification(
             test_data_config, args
         )
         fault_type_classification.final_test()
+        seed_checkpoint_path = Path(model_dir) / f"model_seed_{seed}.pkl"
+        seed_results.append(
+            {
+                "seed": seed,
+                "checkpoint_path": str(seed_checkpoint_path.resolve()),
+                "checkpoint_sha256": sha256_file(seed_checkpoint_path),
+                "classification": fault_type_classification.fc_result,
+            }
+        )
         for result in [fault_type_classification.fc_result]:
             for ent_type in result.keys():
                 if ent_type not in final_dict.keys():
@@ -497,3 +532,30 @@ if __name__ == "__main__":
             print(
                 f"{ent_type} | {em} | mean: {np.mean(final_dict[ent_type][em])}; std: {np.std(final_dict[ent_type][em])}"
             )
+
+    metrics_output_directory = resolve_metrics_output_directory(
+        args["metrics_output_dir"], os.environ
+    )
+    if metrics_output_directory is not None:
+        data_base_path = Path(fault_type_classification.base_path)
+        dataset_path = (data_base_path / args["dataset_path"]).resolve()
+        ground_truth_path = (data_base_path / args["ground_truth_path"]).resolve()
+        records = build_classification_metric_records(
+            seed_results,
+            dataset=args["dataset"],
+            track=args["track"],
+            method="Pretrain and Fine-tuning",
+            strategy="classification-only",
+            environment_id=os.environ.get(
+                "LASRCA_ENVIRONMENT_ID", args["environment_id"]
+            ),
+            run_id=os.environ.get("LASRCA_RUN_ID", "standalone"),
+            dataset_path=dataset_path,
+            dataset_sha256=sha256_file(dataset_path),
+            ground_truth_path=ground_truth_path,
+            ground_truth_sha256=sha256_file(ground_truth_path),
+        )
+        write_evaluation_outputs(
+            metrics_output_directory, records, summarize_metric_records(records)
+        )
+        print(f"structured metrics: {metrics_output_directory.resolve()}")
