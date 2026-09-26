@@ -7,6 +7,10 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
+def ascii_console_text(value):
+    return json.dumps(str(value), ensure_ascii=True)
+
+
 def _merge_line_ranges(intervals):
     merged = []
     for start, end in intervals:

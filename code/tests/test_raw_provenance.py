@@ -2,12 +2,19 @@ import io
 import unittest
 
 from experiments.raw_provenance import (
+    ascii_console_text,
     scan_csv_stream,
     source_member_for_metric,
 )
 
 
 class RawProvenanceTests(unittest.TestCase):
+    def test_renders_non_ascii_archive_paths_as_ascii_console_text(self):
+        rendered = ascii_console_text("初赛评分数据/2022-05-01")
+
+        rendered.encode("ascii")
+        self.assertIn("\\u521d", rendered)
+
     def test_tracks_csv_ordinals_and_physical_lines_for_multiline_logs(self):
         stream = io.StringIO(
             "log_id,timestamp,cmdb_id,value\n"

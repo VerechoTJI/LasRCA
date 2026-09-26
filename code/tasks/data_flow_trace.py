@@ -16,6 +16,7 @@ from experiments.data_flow import (
     write_data_flow_outputs,
 )
 from experiments.raw_provenance import (
+    ascii_console_text,
     read_archive_json,
     scan_archive_csv,
     source_member_for_metric,
@@ -259,7 +260,11 @@ def _raw_provenance(
     root_records = []
     for member_index, member in enumerate(members, start=1):
         timestamp_divisor = 1000 if member == paths["trace"] else 1
-        print(f"raw provenance {member_index}/{len(members)}: {member}", flush=True)
+        print(
+            f"raw provenance {member_index}/{len(members)}: "
+            f"{ascii_console_text(member)}",
+            flush=True,
+        )
         result = scan_archive_csv(
             arguments.seven_zip,
             arguments.raw_archive,
