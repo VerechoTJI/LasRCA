@@ -1,4 +1,7 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -6,9 +9,11 @@ from torch import nn
 
 from experiments.data_flow import (
     binary_confusion_score,
+    describe_modality_coverage,
     summarize_tensor,
     trace_sequential_model,
     validate_edge_index,
+    write_data_flow_outputs,
 )
 
 
@@ -103,6 +108,66 @@ class DataFlowTests(unittest.TestCase):
         self.assertEqual(trace["probabilities"]["node"].shape, (1, 2))
         self.assertEqual(trace["confusion_scores"]["pod"].shape, (2, 2))
         self.assertEqual(trace["max_forward_difference"], 0.0)
+
+    def test_describes_structural_missing_modalities(self):
+        records = describe_modality_coverage(
+            {
+                "ent_types": ["node", "pod"],
+                "modal_types": ["metric", "trace", "log"],
+                "ent_feature_num": {
+                    "node": {"metric": 2, "trace": 0, "log": 0},
+                    "pod": {"metric": 3, "trace": 1, "log": 2},
+                },
+            }
+        )
+
+        lookup = {
+            (record["entity_type"], record["modality"]): record
+            for record in records
+        }
+        self.assertEqual(lookup[("node", "trace")]["status"], "structurally_absent")
+        self.assertEqual(lookup[("pod", "log")]["status"], "available")
+        self.assertEqual(lookup[("pod", "log")]["feature_count"], 2)
+
+    def test_writes_immutable_data_flow_package(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            output = Path(temporary_directory) / "data_flow"
+            output.mkdir()
+            paths = write_data_flow_outputs(
+                output,
+                documents={"case.json": {"case_index": 2}},
+                tables={
+                    "tensor_summary.csv": [
+                        {"name": "input", "shape": [1, 2]},
+                        {"name": "output", "finite_count": 2},
+                    ]
+                },
+                arrays={"input": np.ones((1, 2))},
+                readme="# Evidence\n",
+            )
+
+            self.assertEqual(
+                {path.name for path in paths.values()},
+                {
+                    "case.json",
+                    "tensor_summary.csv",
+                    "data_flow.npz",
+                    "README.md",
+                    "artifact_manifest.json",
+                },
+            )
+            manifest = json.loads(
+                (output / "artifact_manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(len(manifest["artifacts"]), 4)
+            with self.assertRaises(FileExistsError):
+                write_data_flow_outputs(
+                    output,
+                    documents={},
+                    tables={},
+                    arrays={},
+                    readme="",
+                )
 
 
 if __name__ == "__main__":

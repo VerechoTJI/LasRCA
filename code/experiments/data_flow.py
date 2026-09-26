@@ -1,7 +1,12 @@
+import csv
+import json
 import math
+from pathlib import Path
 
 import numpy as np
 import torch
+
+from experiments.artifacts import collect_artifacts
 
 
 def _as_numpy(value):
@@ -73,6 +78,24 @@ def validate_edge_index(edge_index, entity_count):
     }
 
 
+def describe_modality_coverage(meta_data):
+    records = []
+    for entity_type in meta_data["ent_types"]:
+        for modality in meta_data["modal_types"]:
+            feature_count = int(
+                meta_data["ent_feature_num"][entity_type][modality]
+            )
+            records.append(
+                {
+                    "entity_type": entity_type,
+                    "modality": modality,
+                    "feature_count": feature_count,
+                    "status": "available" if feature_count else "structurally_absent",
+                }
+            )
+    return records
+
+
 def _clone_batch(batch):
     return {
         key: value.detach().clone() if torch.is_tensor(value) else value
@@ -132,3 +155,74 @@ def trace_sequential_model(model, batch, modal_types):
         "confusion_scores": confusion_scores,
         "max_forward_difference": maximum_difference,
     }
+
+
+def _write_json_exclusive(path, value):
+    with Path(path).open("x", encoding="utf-8") as output_file:
+        json.dump(value, output_file, ensure_ascii=False, indent=2, sort_keys=True)
+        output_file.write("\n")
+
+
+def _write_csv_exclusive(path, records):
+    records = list(records)
+    fieldnames = []
+    for record in records:
+        for field in record:
+            if field not in fieldnames:
+                fieldnames.append(field)
+    with Path(path).open("x", encoding="utf-8", newline="") as output_file:
+        writer = csv.DictWriter(output_file, fieldnames=fieldnames)
+        writer.writeheader()
+        for record in records:
+            writer.writerow(
+                {
+                    key: json.dumps(value, ensure_ascii=False)
+                    if isinstance(value, (list, dict))
+                    else value
+                    for key, value in record.items()
+                }
+            )
+
+
+def write_data_flow_outputs(
+    output_directory, *, documents, tables, arrays, readme
+):
+    output_directory = Path(output_directory)
+    output_directory.mkdir(parents=True, exist_ok=True)
+    existing = list(output_directory.iterdir())
+    if existing:
+        raise FileExistsError(
+            f"refusing to overwrite data-flow output: {existing[0]}"
+        )
+
+    paths = {}
+    for name, value in documents.items():
+        path = output_directory / name
+        _write_json_exclusive(path, value)
+        paths[name] = path
+    for name, records in tables.items():
+        path = output_directory / name
+        _write_csv_exclusive(path, records)
+        paths[name] = path
+
+    arrays_path = output_directory / "data_flow.npz"
+    with arrays_path.open("xb") as output_file:
+        np.savez_compressed(output_file, **arrays)
+    paths[arrays_path.name] = arrays_path
+
+    readme_path = output_directory / "README.md"
+    with readme_path.open("x", encoding="utf-8") as output_file:
+        output_file.write(readme)
+    paths[readme_path.name] = readme_path
+
+    manifest_path = output_directory / "artifact_manifest.json"
+    _write_json_exclusive(
+        manifest_path,
+        {
+            "artifacts": collect_artifacts(
+                output_directory, excluded_names={manifest_path.name}
+            )
+        },
+    )
+    paths[manifest_path.name] = manifest_path
+    return paths
