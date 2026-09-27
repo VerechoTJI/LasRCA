@@ -1,11 +1,15 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import numpy as np
 
 from experiments.selection import (
+    audit_selected_samples,
     build_candidate_ranking,
     paper_literal_entity_ranking,
     select_repository_case_budget,
+    write_selection_outputs,
 )
 
 
@@ -82,6 +86,84 @@ class SelectionEvidenceTests(unittest.TestCase):
         self.assertEqual(literal[0]["entity_index"], 0)
         self.assertEqual(literal[0]["fault_type_index"], 1)
         self.assertEqual(literal[0]["paper_entity_rank"], 1)
+
+    def test_audit_counts_oversized_subgraphs_and_dangling_edges(self):
+        samples = [
+            {
+                "sample_index": 7,
+                "ent_indices": list(range(11)),
+                "ent_names": [f"entity-{index}" for index in range(11)],
+                "ent_types": ["pod"] * 11,
+                "ent_edges": [["entity-0", "entity-1"], ["entity-1", "missing"]],
+            }
+        ]
+
+        audit = audit_selected_samples(samples, {7: {0}}, max_entities=10)
+
+        self.assertEqual(audit["summary"]["over_max_entities_count"], 1)
+        self.assertEqual(audit["summary"]["dangling_edge_count"], 1)
+        self.assertEqual(audit["entities"][0]["selection_origin"], "direct_confusion")
+
+    def test_writer_refuses_nonempty_output_and_emits_reloadable_pickle(self):
+        samples = [
+            {
+                "sample_index": 0,
+                "ent_indices": [0, 1],
+                "ent_names": ["service-0", "pod-0"],
+                "ent_types": ["service", "pod"],
+                "ent_edges": [["service-0"], ["pod-0"]],
+            }
+        ]
+        ranking = [
+            {
+                "rank": 1,
+                "sample_index": 0,
+                "entity_index": 0,
+                "entity_name": "service-0",
+                "entity_type": "service",
+                "fault_type_index": 0,
+                "fault_type_name": "fault-a",
+                "fault_type_name_en": "Fault A",
+                "mean_probability": 0.5,
+                "confusion_score": 1.0,
+                "masked_as_labeled": False,
+                "selection_eligible": True,
+            }
+        ]
+
+        with TemporaryDirectory() as temporary_directory:
+            output = Path(temporary_directory) / "selection"
+            result = write_selection_outputs(
+                output,
+                selected_samples=samples,
+                candidate_ranking=ranking,
+                paper_literal_ranking=ranking,
+                direct_entities_by_case={0: {0}},
+                checkpoint_records=[{"seed": 405, "checkpoint_sha256": "abc"}],
+                seed_probabilities=np.full((1, 1, 2, 2), 0.5),
+                mean_probabilities=np.full((1, 2, 2), 0.5),
+                preprocessing={"zero_iqr_fallback": "std"},
+                validation={"status": "passed", "checks": {"test": True}},
+                completion={"status": "completed"},
+            )
+
+            self.assertTrue((output / "selected_samples_k_0.pkl").is_file())
+            self.assertTrue((output / "artifact_manifest.json").is_file())
+            self.assertEqual(result["summary"]["dangling_edge_count"], 0)
+            with self.assertRaises(FileExistsError):
+                write_selection_outputs(
+                    output,
+                    selected_samples=samples,
+                    candidate_ranking=ranking,
+                    paper_literal_ranking=ranking,
+                    direct_entities_by_case={0: {0}},
+                    checkpoint_records=[],
+                    seed_probabilities=np.empty((0,)),
+                    mean_probabilities=np.empty((0,)),
+                    preprocessing={},
+                    validation={},
+                    completion={},
+                )
 
 
 if __name__ == "__main__":
