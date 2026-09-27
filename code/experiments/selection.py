@@ -342,6 +342,14 @@ def write_selection_outputs(
     selected_samples_path = output_directory / "selected_samples_k_0.pkl"
     with selected_samples_path.open("wb") as output_file:
         pickle.dump(selected_samples, output_file)
+    with selected_samples_path.open("rb") as input_file:
+        reloaded_samples = pickle.load(input_file)
+    reloaded_audit = audit_selected_samples(
+        reloaded_samples,
+        direct_entities_by_case,
+        max_entities=max_entities,
+    )
+    reload_matches = reloaded_audit["summary"] == audit["summary"]
 
     _write_json(output_directory / "candidate_ranking.json", candidate_ranking)
     _write_csv(output_directory / "candidate_ranking.csv", candidate_ranking)
@@ -369,6 +377,11 @@ def write_selection_outputs(
     summary["selected_samples_sha256"] = sha256_file(selected_samples_path)
     summary["selected_samples_bytes"] = selected_samples_path.stat().st_size
     _write_json(output_directory / "selection_summary.json", summary)
+    validation = dict(validation)
+    validation["checks"] = dict(validation.get("checks", {}))
+    validation["checks"]["selected_pickle_reload_matches"] = reload_matches
+    if not reload_matches:
+        validation["status"] = "failed"
     _write_json(output_directory / "validation.json", validation)
     completion = dict(completion)
     completion.update(summary)

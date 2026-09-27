@@ -150,6 +150,10 @@ class SelectionEvidenceTests(unittest.TestCase):
             self.assertTrue((output / "selected_samples_k_0.pkl").is_file())
             self.assertTrue((output / "artifact_manifest.json").is_file())
             self.assertEqual(result["summary"]["dangling_edge_count"], 0)
+            written_validation = (output / "validation.json").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn('"selected_pickle_reload_matches": true', written_validation)
             with self.assertRaises(FileExistsError):
                 write_selection_outputs(
                     output,
