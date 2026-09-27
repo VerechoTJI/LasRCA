@@ -211,21 +211,32 @@ def filter_edges_to_entities(edge_index, entity_indices):
 
 
 def get_suspect_unlabeled_samples(
-    dataset, probs, neighbor_hop=2, max_ent_per_graph=10, max_samples=100
+    dataset,
+    probs,
+    neighbor_hop=2,
+    max_ent_per_graph=10,
+    max_samples=100,
+    ranked_index=None,
 ):
     samples = []
     fault_type_entropy = binary_entropy(probs)
     fault_type_entropy[np.array(dataset["data"]["unlabeled"]["y_mask"]) == 1] = 0
-    flatten_fault_type_entropy = fault_type_entropy.flatten()
-    sorted_indices = np.argsort(flatten_fault_type_entropy)[::-1]
-    index = np.unravel_index(sorted_indices, fault_type_entropy.shape)
+    if ranked_index is None:
+        flatten_fault_type_entropy = fault_type_entropy.flatten()
+        sorted_indices = np.argsort(flatten_fault_type_entropy)[::-1]
+        index = np.unravel_index(sorted_indices, fault_type_entropy.shape)
+    else:
+        index = tuple(np.asarray(values) for values in ranked_index)
+        if len(index) != 3 or len({len(values) for values in index}) != 1:
+            raise ValueError("ranked_index must contain three equally sized arrays")
 
-    unique_value_set, final_index = set(), ...
+    unique_value_set, final_index = set(), len(index[0])
     for i, value in enumerate(index[0]):
-        unique_value_set.add(value)
-        if len(unique_value_set) > max_samples:
-            final_index = i
-            break
+        if value not in unique_value_set:
+            if len(unique_value_set) >= max_samples:
+                final_index = i
+                break
+            unique_value_set.add(value)
     index = [index[0][:final_index], index[1][:final_index], index[2][:final_index]]
 
     fault_type_list = dataset["meta_data"]["en_fault_type_list"]
