@@ -19,6 +19,7 @@
 | 07-A Dataset 更新及隔離輸入 | 程式完成，正式更新等待100案例 | 單元測試驗證只改選中 unlabeled 的 y/y_mask；test split 不變；16項相關測試通過。`llm.build_labeled_dataset` 與 `--prepared_dataset_path` 避免覆寫 released caches |
 | 08／09 | 等待 LLM 結果與 k=1 | 不預設模型品質改善 |
 | 08 比較工具 | 程式完成 | 2 tests：成對seed/metric檢查、GT一致性、母體std、baseline零的相對差。正式結果等待完整補標及5 seeds重訓 |
+| 09 離線錯誤分析 | 工具及已完成部分驗證完成 | 2案例、15 entity，1 entity與GT不一致；來源／原回答／模擬y-mask影響保存在 runs/lasrca/luna_20261004/audit。未更新正式dataset；不足10個不同錯誤案例，完整結果仍待補標恢復 |
 | 10／11 | 待執行 | raw archives 已存在；GPU 在沙箱可用 |
 
 已知需正常使用者權限：OAuth 網路及 DPAPI、含 DPAPI 的 unittest。GPU probe 可在沙箱完成，訓練與本機資料處理優先在沙箱執行。啟用 venv 後使用 `python -m ...` 以便授權固定模組範圍。
