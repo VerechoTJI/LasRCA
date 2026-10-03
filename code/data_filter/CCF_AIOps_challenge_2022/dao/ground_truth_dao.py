@@ -1,5 +1,6 @@
 import pandas as pd
 import glob
+from pathlib import Path
 
 from data_filter.CCF_AIOps_challenge_2022.base.base_class import BaseClass
 
@@ -15,11 +16,12 @@ class GroundTruthDao(BaseClass):
 
         file_list = glob.glob(f'{data_base_path}/*.csv')
         for file in file_list:
+            filename = Path(file).name
             if dataset_type == 'train_valid':
-                date = '2022-' + file.split('/')[-1].replace('.csv', '').split('2022-')[-1]
-                cloud_bed = 'cloudbed-' + file.split('/')[-1].replace('.csv', '').split('-2022')[0].split('-')[-1]
+                date = '2022-' + filename.replace('.csv', '').split('2022-')[-1]
+                cloud_bed = 'cloudbed-' + filename.replace('.csv', '').split('-2022')[0].split('-')[-1]
             else:
-                date = '2022-' + file.split('/')[-1].replace('.csv', '').split('2022-')[-1]
+                date = '2022-' + filename.replace('.csv', '').split('2022-')[-1]
                 cloud_bed = 'cloudbed'
             if date not in result_dict.keys():
                 result_dict[date] = dict()

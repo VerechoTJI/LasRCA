@@ -3,12 +3,21 @@ import json
 
 
 class DataConfig:
-    def __init__(self):
+    def __init__(self, config_path=None):
         self.data_dict = dict()
         self.param_dict = dict()
 
         self.set_data_dict()
         self.set_param_dict()
+        config_path = config_path or os.environ.get('LASRCA_PREPROCESS_CONFIG')
+        if config_path:
+            with open(config_path,encoding='utf-8') as f:
+                overrides = json.load(f)
+            for name in ('file','ground_truth'):
+                if name in overrides:
+                    self.data_dict[name] = overrides[name]
+            if 'temp_data_storage' in overrides:
+                self.param_dict['temp_data_storage'] = overrides['temp_data_storage']
 
     def set_data_dict(self):
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'metric_setting.json')) as f:
