@@ -33,13 +33,10 @@ for sample in selected_samples:
 gpt_query_list = []
 for sample in selected_samples:
     sample_index = sample['sample_index']
-    with open(f'./prompts/stage-3/{sample_index}.txt') as r:
+    with open(f'{prompt_base_path}/stage-3/{sample_index}.txt') as r:
         content = r.read()
-    chat_completion = client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": content}]
-    )
+    response_text = client.complete(content)
     save_dir = f'{response_base_path}/stage-3'
     os.makedirs(save_dir, exist_ok=True)
     with open(f'{save_dir}/{sample_index}.txt', 'w') as w:
-        w.write(chat_completion.choices[0].message.content)
+        w.write(response_text)

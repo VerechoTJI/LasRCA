@@ -16,14 +16,11 @@ for i in range(len(record['sample_indices'])):
     sample_index, ent_index, prompt_type = record['sample_indices'][i], record['ent_indices'][i], record['prompt_types'][i]
     with open(f'{prompt_base_path}/explanation/{sample_index}/{ent_index}/{prompt_type}.txt') as r:
         prompt = r.read()
-    chat_completion = client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}]
-    )
+    response_text = client.complete(prompt)
     save_dir = f'{response_base_path}/explanation/{sample_index}/{ent_index}'
     os.makedirs(save_dir, exist_ok=True)
     with open(f'{save_dir}/{prompt_type}.txt', 'w') as w:
-        w.write(chat_completion.choices[0].message.content)
+        w.write(response_text)
 
     end = time.time()
     time_count[f'{sample_index}-{ent_index}-{prompt_type}'] = end - start

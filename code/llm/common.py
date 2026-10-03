@@ -2,11 +2,14 @@ import os
 import pickle
 import time
 
-from openai import OpenAI
+try:
+    from .luna_oauth import LunaClient
+except ImportError:
+    from luna_oauth import LunaClient
 
 
 k = 0
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+client = LunaClient()
 
 
 def find_strings_with_prefix(strings, prefix):
