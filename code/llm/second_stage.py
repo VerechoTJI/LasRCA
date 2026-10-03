@@ -11,13 +11,13 @@ for sample in selected_samples:
                     sample_index = sample['sample_index']
                     observation_dict = dict()
                     for file in ent_files[ent_type]:
-                        with open(f'{response_base_path}/stage-1/{sample_index}/{sample["ent_indices"][i]}/{ent_type}_{file}.txt') as f:
+                        with open(f'{response_base_path}/stage-1/{sample_index}/{sample["ent_indices"][i]}/{ent_type}_{file}.txt', encoding="utf-8") as f:
                             content = f.read()
                         observation_dict[file] = content
                     merge_prompt = merge_template[ent_type].format(**observation_dict)
                     save_dir = f'{prompt_base_path}/stage-2/{sample_index}'
                     os.makedirs(save_dir, exist_ok=True)
-                    with open(f'{save_dir}/{sample["ent_indices"][i]}.txt', 'w') as w:
+                    with open(f'{save_dir}/{sample["ent_indices"][i]}.txt', 'w', encoding="utf-8") as w:
                         w.write(merge_prompt)
                 break
 
@@ -28,11 +28,11 @@ for sample in selected_samples:
             if ent_pair[0] <= sample['ent_indices'][i] < ent_pair[1]:
                 if ent_type == 'node' or ent_type == 'pod':
                     sample_index = sample['sample_index']
-                    with open(f'{prompt_base_path}/stage-2/{sample_index}/{sample["ent_indices"][i]}.txt') as f:
+                    with open(f'{prompt_base_path}/stage-2/{sample_index}/{sample["ent_indices"][i]}.txt', encoding="utf-8") as f:
                         content = f.read()
                     response_text = client.complete(content)
                     save_dir = f'{response_base_path}/stage-2/{sample_index}'
                     os.makedirs(save_dir, exist_ok=True)
-                    with open(f'{save_dir}/{sample["ent_indices"][i]}.txt', 'w') as w:
+                    with open(f'{save_dir}/{sample["ent_indices"][i]}.txt', 'w', encoding="utf-8") as w:
                         w.write(response_text)
                 break

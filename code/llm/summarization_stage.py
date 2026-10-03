@@ -10,21 +10,21 @@ for sample in selected_samples:
         structure_output_format[sample["ent_names"][i]] = {
             'exact_fault_type': ''
         }
-    with open(f'{response_base_path}/stage-3/{sample_index}.txt') as f:
+    with open(f'{response_base_path}/stage-3/{sample_index}.txt', encoding="utf-8") as f:
         content = f.read()
     summarization_prompt = SUMMARIZATION_PROMPT.format(observations=content, detailed_format=str(structure_output_format))
     save_dir = f'{prompt_base_path}/summarization'
     os.makedirs(save_dir, exist_ok=True)
-    with open(f'{save_dir}/{sample_index}.txt', 'w') as w:
+    with open(f'{save_dir}/{sample_index}.txt', 'w', encoding="utf-8") as w:
         w.write(summarization_prompt)
 
 gpt_query_list = []
 for sample in selected_samples:
     sample_index = sample['sample_index']
-    with open(f'{prompt_base_path}/summarization/{sample_index}.txt') as r:
+    with open(f'{prompt_base_path}/summarization/{sample_index}.txt', encoding="utf-8") as r:
         content = r.read()
     response_text = client.complete(content)
     save_dir = f'{response_base_path}/summarization'
     os.makedirs(save_dir, exist_ok=True)
-    with open(f'{save_dir}/{sample_index}.txt', 'w') as w:
+    with open(f'{save_dir}/{sample_index}.txt', 'w', encoding="utf-8") as w:
         w.write(response_text)

@@ -220,6 +220,9 @@ class LunaClient:
                     pieces.append(event.delta)
                 elif event.type == 'response.completed':
                     completed = event.response.status == 'completed'
+                    usage = getattr(event.response, 'usage', None)
+                    self.last_metadata = dict(returned_model=getattr(event.response,'model',None),
+                        usage=usage.model_dump() if usage is not None else None)
                 elif event.type in ('response.failed','response.incomplete','error'):
                     raise OAuthError('Luna response failed or was incomplete; no output saved.')
         except OAuthError:

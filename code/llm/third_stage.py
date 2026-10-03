@@ -13,7 +13,7 @@ for sample in selected_samples:
                 ent_dict[ent_type].append(sample["ent_names"][i])
                 if ent_type == 'node' or ent_type == 'pod':
                     sample_index = sample['sample_index']
-                    with open(f'{response_base_path}/stage-2/{sample_index}/{sample["ent_indices"][i]}.txt') as f:
+                    with open(f'{response_base_path}/stage-2/{sample_index}/{sample["ent_indices"][i]}.txt', encoding="utf-8") as f:
                         content = f.read()
                     ent_info_list.append(f"### {sample['ent_names'][i]}\n\n{content}")
                 break
@@ -27,16 +27,16 @@ for sample in selected_samples:
     )
     save_dir = f'{prompt_base_path}/stage-3'
     os.makedirs(save_dir, exist_ok=True)
-    with open(f'{save_dir}/{sample_index}.txt', 'w') as w:
+    with open(f'{save_dir}/{sample_index}.txt', 'w', encoding="utf-8") as w:
         w.write(graph_prompt)
 
 gpt_query_list = []
 for sample in selected_samples:
     sample_index = sample['sample_index']
-    with open(f'{prompt_base_path}/stage-3/{sample_index}.txt') as r:
+    with open(f'{prompt_base_path}/stage-3/{sample_index}.txt', encoding="utf-8") as r:
         content = r.read()
     response_text = client.complete(content)
     save_dir = f'{response_base_path}/stage-3'
     os.makedirs(save_dir, exist_ok=True)
-    with open(f'{save_dir}/{sample_index}.txt', 'w') as w:
+    with open(f'{save_dir}/{sample_index}.txt', 'w', encoding="utf-8") as w:
         w.write(response_text)

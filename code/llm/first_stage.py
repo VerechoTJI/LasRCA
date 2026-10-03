@@ -9,11 +9,11 @@ for sample in selected_samples:
                 if ent_type == 'node' or ent_type == 'pod':
                     sample_index = sample['sample_index']
                     for file in ent_files[ent_type]:
-                        with open(f'{prompt_base_path}/stage-1/{sample_index}/{sample["ent_indices"][i]}/{ent_type}_{file}.txt') as f:
+                        with open(f'{prompt_base_path}/stage-1/{sample_index}/{sample["ent_indices"][i]}/{ent_type}_{file}.txt', encoding="utf-8") as f:
                             content = f.read()
                         response_text = client.complete(content)
                         save_dir = f'{response_base_path}/stage-1/{sample_index}/{sample["ent_indices"][i]}'
                         os.makedirs(save_dir, exist_ok=True)
-                        with open(f'{save_dir}/{ent_type}_{file}.txt', 'w') as w:
+                        with open(f'{save_dir}/{ent_type}_{file}.txt', 'w', encoding="utf-8") as w:
                             w.write(response_text)
                 break
