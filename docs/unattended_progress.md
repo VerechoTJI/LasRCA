@@ -2,6 +2,8 @@
 
 ## 權限請求失敗
 
+使用者後續指示：先跳過全部網路與 DPAPI 操作。已停止全量 Luna runner（session 69295，Ctrl-C 結束）；完成案例為0與5，正式100案例未完成。06全量、正式07訓練與08／09完整實驗結果等待恢復網路授權；可繼續本機實作、測試、raw preprocessing 與 TS2Vec。改用 `uv run --no-sync --cache-dir ../out/uv-cache python ...`，不呼叫 Activate.ps1。
+
 2026-10-04：為避免每次重新啟用 venv，建立正常使用者權限的持續 PowerShell（session 24409）。建立成功，但第一次後續 `write_stdin` 輸入即被工具拒絕，訊息為 `rejected by user`。Python 路徑檢查、檔案試跑、OAuth check 均未在該次工具呼叫中確認執行。停止重試此 session；此路線尚未證明可免除後續授權。原有沙箱持續 shell 的 venv／CUDA／5 tests 已驗證成功；先前單獨授權的100案例標註 session 69295 已啟動，但目前不得聲稱全量完成。
 
 `E:/Misc/FastCodingWorkspace/AI/SMCI/reproduction_staus_original.md` 唯讀，所有進度另存本檔。沿用公開 100 cases/subgraphs，不另作選樣對照。模型為 GPT-6 Luna OAuth。
@@ -16,6 +18,7 @@
 | 07 Dataset／重訓 | 待執行 | 原始 k=1 程式是重新初始化後訓練，不是載入 k=0；本工作保留原始語義，修正先前計畫中的錯誤假設 |
 | 07-A Dataset 更新及隔離輸入 | 程式完成，正式更新等待100案例 | 單元測試驗證只改選中 unlabeled 的 y/y_mask；test split 不變；16項相關測試通過。`llm.build_labeled_dataset` 與 `--prepared_dataset_path` 避免覆寫 released caches |
 | 08／09 | 等待 LLM 結果與 k=1 | 不預設模型品質改善 |
+| 08 比較工具 | 程式完成 | 2 tests：成對seed/metric檢查、GT一致性、母體std、baseline零的相對差。正式結果等待完整補標及5 seeds重訓 |
 | 10／11 | 待執行 | raw archives 已存在；GPU 在沙箱可用 |
 
 已知需正常使用者權限：OAuth 網路及 DPAPI、含 DPAPI 的 unittest。GPU probe 可在沙箱完成，訓練與本機資料處理優先在沙箱執行。啟用 venv 後使用 `python -m ...` 以便授權固定模組範圍。
