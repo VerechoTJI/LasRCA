@@ -449,6 +449,8 @@ if __name__ == "__main__":
         "--mode", choices=("evaluate", "train"), default="evaluate"
     )
     parser.add_argument("--dataset", default="A/metric_trace_log")
+    parser.add_argument('--prepared_dataset_path',type=Path,default=None,
+        help='Read a separately prepared dataset without modifying released dataset caches.')
     parser.add_argument(
         "--dataset_path",
         default="2022_CCF_AIOps_challenge/dataset/final/metric_trace_log.pkl",
@@ -604,6 +606,7 @@ if __name__ == "__main__":
     elif not model_dir.is_dir():
         raise FileNotFoundError(f"checkpoint directory does not exist: {model_dir}")
     test_data_config = {
+        "prepared_dataset_path": args['prepared_dataset_path'],
         "dataset": f'{args["dataset"]}',
         "dataset_path": f'{args["dataset_path"]}',
         "ground_truth_path": f'{args["ground_truth_path"]}',
@@ -654,6 +657,8 @@ if __name__ == "__main__":
             "checkpoint_sha256": sha256_file(las_rca.training_checkpoint_path),
             "dataset_path": str(dataset_path),
             "dataset_sha256": sha256_file(dataset_path),
+            "prepared_dataset_path": str(args['prepared_dataset_path']) if args['prepared_dataset_path'] else None,
+            "prepared_dataset_sha256": sha256_file(args['prepared_dataset_path']) if args['prepared_dataset_path'] else None,
             "ground_truth_path": str(ground_truth_path),
             "ground_truth_sha256": sha256_file(ground_truth_path),
             "trace_preprocessing": trace_preprocessing,

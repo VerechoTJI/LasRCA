@@ -151,6 +151,10 @@ class BaseClass(ABC):
         return save_file_path, file_name
 
     def prepare_dataset(self, overwrite=False):
+        prepared_path = self.data_config.get('prepared_dataset_path')
+        if prepared_path:
+            self.dataset = pkl_load(str(prepared_path))
+            return
         save_file_path, file_name = self.get_dataset_file_name(self.model_config["k"])
         if os.path.exists(f"{save_file_path}/{file_name}") and not overwrite:
             self.dataset = pkl_load(f"{save_file_path}/{file_name}")
