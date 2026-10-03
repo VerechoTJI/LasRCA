@@ -22,6 +22,9 @@
 | 09 離線錯誤分析 | 工具及已完成部分驗證完成 | 2案例、15 entity，1 entity與GT不一致；來源／原回答／模擬y-mask影響保存在 runs/lasrca/luna_20261004/audit。未更新正式dataset；不足10個不同錯誤案例，完整結果仍待補標恢復 |
 | 10／11 | 待執行 | raw archives 已存在；GPU 在沙箱可用 |
 | 10 本機抽樣 preprocessing | 執行中 | 使用既有7-Zip解出2022-03-19 cloudbed-1 normal與2022-03-20 cloudbed-1 fault；全部放獨立run。topology、entity edge、time windows已成功；Metric執行中。test尚未納入，因此不是完整重現 |
+| 11 TS2Vec runner | 程式完成；600 epochs訓練執行中 | service／Metric+Trace+Log，seed405、output dims320、batch32、lr0.001；沿用原loader與TS2Vec算法。獨立 runs/lasrca/ts2vec_20261004，前9 epochs loss finite；完成後用source causal encoding設定比較一段test embedding。下游RCA比較仍未完成 |
+
+本輪本機測試75項全部通過；依使用者指示排除1項需要Windows DPAPI的憑證加密測試，不執行網路推論測試。TS2Vec的max_threads設定會import mkl-service而引入第二份OpenMP runtime，本runner改由Torch直接設定threads，未使用KMP_DUPLICATE_LIB_OK繞過衝突。
 
 已知需正常使用者權限：OAuth 網路及 DPAPI、含 DPAPI 的 unittest。GPU probe 可在沙箱完成，訓練與本機資料處理優先在沙箱執行。啟用 venv 後使用 `python -m ...` 以便授權固定模組範圍。
 
