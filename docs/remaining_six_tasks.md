@@ -227,3 +227,103 @@ OAuth與DPAPI是本次新增的登入／憑證保護方式，**與論文方法�
 6. 11：自訓encoder、全序列embedding与隔離下游paired結果，明列替換与指標範圍。
 
 因此「全部完成」需要六項的實驗證據齊全；網路恢復與單一缺檔修正只讓工作可以繼續，不等於提前保證上述所有驗證通過。
+
+## 原始文件「保存／記錄／回報」要求逐項對照
+
+以下逐句對照2026-10-04重新讀取的原始0C-06～11。**本節是本次重現證據保存要求，與論文演算法無關。** 原需求已指定要保存或回報的內容不取消；欄位與檔名是本次具體化的實作約定。已有檔名按現有程式核對；標「待產生／待補工具」的檔案不能被當成已存在。
+
+### 路徑與狀態讀法
+
+以下路徑相對於 `E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA`：
+
+- `L`＝`runs/lasrca/luna_20261004`，100cases標註與label update。
+- `K1(s)`＝`runs/lasrca/retraining_luna/seed_<s>`，s為405～409；正式run尚未生成，啟動時可加timestamp，但manifest須記實際絕對路徑。
+- `K0(s)`＝`runs/lasrca/baseline_no_std/seed_<s>`，移除fallback後的配對基準；正式run尚未生成。
+- `C`＝`runs/lasrca/comparison_luna`，配對評估與論文比較；尚未生成。
+- `R`＝`runs/lasrca/raw_20261004`，目前raw抽樣；全量另用獨立run並在manifest記錄，不能沿用抽樣統計當全量。
+- `T`＝`runs/lasrca/ts2vec_20261004`，已完成encoder訓練。
+- `D`＝`runs/lasrca/ts2vec_downstream`，embedding全量與下游配對；尚未生成。
+
+「部分已有」只表示目前完成部分有檔案；「工具已有／待正式執行」不等於有完整正式結果；「待補工具」表示現有程式還不能完整輸出這項要求。原始status文件中的GPT-4依使用者決定替換為Luna，保存時仍明列這個條件差異。
+
+### 06：每階段、標籤、錯誤、模型與費用
+
+| 原始要求 | 記錄單位與必需內容 | 明確輸出 | 目前覆蓋與驗收 |
+|---|---|---|---|
+| 各階段prompt | 每case／stage／entity／觀測類別；保存實際送出的完整UTF-8文字。first記node或pod與CPU等類別，second記entity，third與summary記case | `L/prompts/stage-1/<case>/<entity_index>/<type>_<category>.txt`；`stage-2/<case>/<entity_index>.txt`；`stage-3/<case>.txt`；`summarization/<case>.txt` | 部分已有；100cases全部預期prompt能定位，與實際request文字一致 |
+| 各階段response | 與prompt相同單位，保存完整原始回答；另關聯request hash、model與duration，不能用解析結果取代原文 | `L/responses/`同上層級；`L/requests/<hash>.json` | 部分已有；每成功stage有原文，失敗／中斷不冒充完整回答 |
+| 解析後exact_fault_type | 每case/entity：`case_index,entity_index,entity_name,raw_exact_fault_type,normalized_fault_type,label_id,parse_status,validation_status,response_path`；未知或缺漏保留原值與原因 | **待產生／待補完整匯出**：`L/labels/parsed_labels.jsonl`；可讀CSV存flatten後相同欄位 | builder已有解析與部分label_changes欄位，但尚無完整獨立parsed labels表；逐entity可回查摘要原文 |
+| explanation | 每case/entity連回第三階段的實際理由。欄位：`case_index,entity_name,explanation_text,source_stage,source_path,extraction_status`；只有case層級理由時標`case_level`，無法可靠抽取entity理由時標缺失，不自行生成新理由 | 原文部分已有：`L/responses/stage-3/<case>.txt`；**待匯出**：`L/labels/explanations.jsonl`與parsed labels關聯 | 目前audit有explanation_path，尚非獨立解析後explanation；驗收须保存實際理由文字或明確缺失狀態与原文來源 |
+| 完成率 | case分母100；`completed_cases,failed_cases,pending_cases,total_cases,execution_completion_rate`。另列`parseable_cases,total_expected_entities,valid_entity_labels,missing_entity_labels,valid_label_rate`；兩種完成率不混用 | 現有`L/status.json`／`summary.json`；**待補彙整**：`L/labeling_report.json`及`.md` | case狀態部分已有，summary於runner結束寫出；格式／entity完成率仍待補；三種case數合計100 |
+| API／路徑錯誤 | 每失敗attempt：`case_index,stage,entity_or_request_if_known,error_category,error_type,message,time,status`；category區分auth、quota、network／API、missing_prompt／path、其他；保存可取得的HTTP status，無值標null | 現有status含case／stage／exception type／message；**待補attempt明細**：`L/errors/execution_errors.jsonl` | 未有完整timestamp／HTTP與category匯出；失敗不能被後續成功覆蓋而完全失去歷史 |
+| 無法解析／格式不符數量 | 每case/entity錯誤明細：`json_parse_failed,missing_entity,unexpected_entity,invalid_type,unknown_fault`；彙總須分case與entity計數，並說明一項可有多種問題 | **待彙整**：`L/labels/validation_errors.jsonl`、`L/labeling_report.json`；builder已有`dataset/summary.json.parse_errors`与label_changes.status | 解析工具已有；完整表待全量；格式錯誤不計成No fault |
+| 模型版本 | 每實際請求記`requested_model,returned_model`，run manifest記固定模型；returned值缺失標null，不能用請求值假裝回傳版本 | `L/manifest.json.model`、`L/requests/<hash>.json.model`及`metadata.returned_model`；報告彙整不同returned值與數量 | metadata已有；正式彙整待產生；不得只寫GPT-4歷史檔名字尾 |
+| token用量 | 每成功request：`input_tokens,output_tokens,total_tokens`与API提供的cached input／reasoning細項；case／stage關聯後彙整總數，cache重用不算新request | `L/requests/<hash>.json.metadata.usage`；**待產生**：`L/usage/request_usage.csv`、`L/usage/summary.json` | request原始usage已有；case／stage關聯表與總量未匯出；缺失usage數另列 |
+| 成本 | 明列`cost_kind(actual_or_estimate),currency,pricing_source,pricing_date,input_rate,output_rate,cached_rate,token_basis,cost,missing_reason`；採usage乘適用費率時稱估算，不稱帳單實付 | **待產生**：`L/usage/cost.json`及可讀報告 | 尚未完成；無法取得費率／實付資訊時標不可得，不填0、不宣稱精確成本已驗收 |
+
+### 07：更新前後、標籤數、分布及五個seed產物
+
+| 原始要求 | 記錄單位與必需內容 | 明確輸出 | 目前覆蓋與驗收 |
+|---|---|---|---|
+| 更新前後y／y_mask | 保存更新前dataset路徑／hash与完整原陣列、更新後独立dataset；逐selected case/entity記`y_before,y_after,mask_before,mask_after,llm_label,status,reason`，額外entity／未知值不省略 | 原prepared source保持唯讀；`L/dataset/k1_luna.pkl`、`label_changes.json`、`summary.json`；**待補完整陣列快照**：`labels_before.npz`／`labels_after.npz`含各split y及y_mask | 工具已有／正式檔待執行；完整快照匯出待補；不只列前幾行diff，全部變更可核對 |
+| 新增label數 | `new_mask_count`定義mask0→1的entity occurrences；另列`applied,already_labeled,changed_y_count,ignored_count`及忽略原因，不把正常No fault排除 | builder summary已有applied／new_mask_count；**待補**：`L/dataset/update_statistics.json` | 部分統計工具已有；正式結果及補充統計待產生；新增數可由逐entitydiff重算 |
+| fault-type分布 | 更新前／後按`entity_type,fault_id,fault_name`列`labeled_count_before,labeled_count_after,newly_labeled_count,changed_to_count,ignored_count`；No fault單列；masked與可用labels分開 | **待補工具／產生**：`L/dataset/fault_type_distribution.csv`与JSON | 現有builder沒有完整分布匯出；各類計數合計與mask總數一致 |
+| seeds405–409、k=1 | 每run：`seed,k,actual_model_labeling_strategy,dataset_path/hash,prepared_dataset_path/hash,split_hash,preprocessing,hyperparameters,requested/completed_epochs,exit_code` | `K1(s)/manifest.json`与`metrics/training_summary.json`；source label字尾與實際Luna策略分開 | 工具大部分已有；split hash／全hyperparameters須補足manifest；五組不得混用不同dataset |
+| 各seed checkpoint | 實際checkpoint檔＋`seed,checkpoint_path,bytes,sha256,completed_epochs`；保存artifact不只路徑 | `K1(s)/models/model_seed_<s>_k_1.pkl`，實際路徑依CLI model_dir；summary記同檔hash | 待正式訓練；五檔可讀且hash重算一致，失敗run不算完成 |
+| 各seed duration | 分開`training_duration_seconds`與`wall_clock_duration_seconds`，单位秒；start/end timestamp保存時區 | training summary的duration_seconds；runner manifest的總duration／timestamp | 工具已有／正式結果待執行；五seed都有時間，不能用單seed時間乘5替代 |
+| 各seed訓練log | 每epoch `epoch,total_loss,labeled_loss,iterative_loss,learning_rate,duration_seconds`，另保存完整stdout/stderr與錯誤 | `K1(s)/metrics/training_history.json`／`.csv`，`stdout.log`／`stderr.log`，`training_summary.json` | 工具已有／正式執行待開始；500epochs連續且與completed_epochs相符，失敗log保留 |
+
+### 08：逐seed、統計摘要、絕對／相對差與論文方向
+
+| 原始要求 | 記錄單位與必需內容 | 明確輸出 | 目前覆蓋與驗收 |
+|---|---|---|---|
+| 相同切分與seeds | 每seed配對記`before_run,after_run,seed,entity_type,GT_hash,split_hash,features_hash,preprocessing,checkpoint_hash`；labels差異另外保留 | **待產生／補條件檢查**：`C/pairing_manifest.json` | compare工具現在只嚴格核對seed／entity集合、GT與metric欄位，不能當作已驗證split／features／前處理一致 |
+| localization AC@1／3／5 | 每strategy(k0/k1)×seed×entity_type記三項數值與test_case_count；保存ranking與GT以可重算 | `K0(s)`／`K1(s)`評估的`metrics/per_seed_metrics.json`／`.csv`；**待補**：`evaluation/case_predictions.jsonl`（case、GT、ranking） | metrics工具已有；正式結果與逐案例匯出待產生。原始08本次重讀未列Avg@5；現工具另存AC@2／4與Avg@5，標為追加分析，不冒充原要求 |
+| fault-type Precision／Recall／F1 | 同單位分Micro／Macro記P／R／F1，保存類別集合、No fault與support定義；逐case/entity prediction與GT供重算 | 同上per_seed_metrics六欄：`micro_precision_score,micro_recall_score,micro_f1_score,macro_precision_score,macro_recall_score,macro_f1_score` | 工具已有／正式結果未有；不可只報單一F1或只報service |
+| 逐seed結果 | 一列對應seed×entity_type×metric，列k0值、k1值、配對來源 | `C/comparison.json.per_seed`；**待補可讀CSV**：`C/per_seed_comparison.csv` | paired JSON工具已有；五seed与三entity types覆蓋一致 |
+| mean±std | 每entity_type×metric×strategy保存`count=5,mean,std,std_definition=population(ddof0)`与5個原值；不能平均先四捨五入值 | 各evaluation summary JSON／CSV；`C/comparison.json.summary`与`comparison.md` | 工具已有／正式彙整待結果；標std不是標準誤，兩策略分別計算 |
+| 絕對／相對差 | 每seed与彙整列`delta_percentage_points=100*(k1−k0)`、`relative_percent=100*(k1−k0)/k0`；k0為0時null／N/A，說明原因 | `C/comparison.json`与`.md`，上述CSV同步 | 工具已有；先固定metrics為0～1再轉百分點，不能混比例與百分比 |
+| 與論文提升方向比較 | 每表格row：`paper_source,page/table/row,dataset/entity_type,metric,paper_k0,paper_k1,paper_delta,local_k0,local_k1,local_delta,direction_match,condition_differences` | **待產生／工具待補**：`C/paper_comparison.csv`与`paper_comparison.md` | 現comparison工具沒有論文值／方向表；需核對原文，Luna／clipping與paper条件不同明列；無法對應的row標未比較 |
+
+### 09：10～20實際案例與dataset update影響
+
+| 原始要求 | 記錄單位與必需內容 | 明確輸出 | 目前覆蓋與驗收 |
+|---|---|---|---|
+| 故障案例／entity | 每錯誤實例記`error_id,case_index,date/cloudbed,start/end_time,entity_index,entity_name,entity_type`；同case多entity明列 | 現有`L/audit/errors.json.entity_errors`；**待補定位欄位及CSV**：`L/audit/error_cases.csv` | case/entity已有；日期／時間locator待補。列10～20真實例，不足列全部與不足原因 |
+| GT label與LLM label | `gt_id,gt_name,gt_source_path,gt_split/case/entity_locator,llm_raw_value,llm_normalized_name,llm_id`；GT不是LLM可用label來源 | errors JSON已有GT值／名与LLM值；**待補精確GT來源及locator** | 部分已有；每GT可從來源重取，不只依entity名稱猜日期 |
+| 原始response | 完整摘要回答、response_path与第三階段原文來源；必要時引用first／second定位原因 | errors JSON的raw_response／response_path／explanation_path；`L/responses`保存完整stage原文 | 部分已有；報告可節錄，但原文不可只保存節錄；無法歸因stage標未知 |
+| 錯誤類型 | 每例`error_types`可多標籤，固定分類名稱与定義；parse、missing、unknown、invalid type與fault mismatch分開 | 現有errors JSON、summary error_type_counts；**待補分類定義**：`L/audit/error_taxonomy.json` | 工具部分已有；同例多標籤造成加總大於案例數時解釋 |
+| 對dataset update影響 | 實際更新後記`update_status,y_before/y_after,mask_before/mask_after,applied_or_ignored,ignore_reason,dataset_hash`；連回07 diff；未正式更新須標simulation | 現audit all_label_changes含模擬值；**待關聯**：`L/audit/update_impact.jsonl`与正式label_changes | 現在只有模擬，不能標已採用；正式07完成後核對錯誤是否進入訓練 |
+| 各錯誤類型數量 | `error_type,entity_occurrence_count,distinct_case_count,denominator,rate`，另列parse失敗、不可評估GT與無label數；格式問題与可評估標籤錯判分母分開 | summary現有部分counts；**待補**：`L/audit/error_type_counts.csv`及`report.md` | 已有前2case分析；全量統計待產生，不外推部分比例 |
+
+### 10：各script輸入／輸出數量、schema、耗時、失敗與manifest
+
+| 原始要求 | 記錄單位與必需內容 | 明確輸出 | 目前覆蓋與驗收 |
+|---|---|---|---|
+| 每script輸入／輸出筆數 | 每stage×split×date×cloudbed×modality：`input_files,input_count,input_unit,output_files,output_count,output_unit`；Metric取樣值／CSV rows、Trace spans、Log messages、GT故障事件、windows故障案例、topology entities/edges、final dataset cases各用對應單位 | **待補工具**：`R/stage_counts.csv`与JSON；全量run同格式 | 現raw runner只記duration／exit，不記完整數量；不能用檔案bytes冒充筆數；聚合前後不同單位不直接相減 |
+| 每script schema | CSV記欄名／dtype／timestamp單位／entity key，JSON記必要keys與型別，tensor／pkl記split／modality／axes／shape／dtype／NaN/Inf與缺模態；記實際field count | **待補工具**：`R/stage_schemas.json`；各stage項目連回產物path | 目前沒有全stage schema匯出；每種類輸出均有schema，不只final shape |
+| 每script duration | `module,attempt_id,started_at,ended_at,time_zone,duration_seconds,exit_code,config_path/hash,log_path`；不同重跑attempt分開 | 現有`R/pipeline_status.json`含module／command／duration／exit；logs與修正前備份；**待補attempt明細**：`R/stage_runs.jsonl` | 耗時部分已有；timestamp／attempt連續歷史待補；不能只留最后成功時長 |
+| 失敗案例 | `stage,attempt_id,split,date,cloudbed,input_path,entity/window_if_known,error_type,message,status/action,log_path`；若stage在案例生成前失敗，不編造case_id | 原失敗log與status已保存；**待補表**：`R/failures.jsonl`／`.csv` | 已有缺Istio例的原log，結構化完整列表未有；失败项與后续恢復可关联 |
+| 最終temp_data manifest | 每artifact：`relative_path,artifact_kind,split/date/cloudbed/modality,bytes,sha256,row_or_case_count,schema_ref,producing_stage`；scope列抽樣／全量与预期coverage | 現有collect_artifacts输出path／bytes／hash至`R/artifact_manifest.json`；**待補欄位**：`R/final_manifest.json` | manifest僅完成runner各指定stage後生成；當前不能當最終完成。每final依賴均在manifest，路徑可讀 |
+| 自建vs released shape | 同split/date/cloudbed/entity/window/modality記`own_path,released_path,own_shape,released_shape,feature_order_match,status` | **待補工具**：`R/comparison/shapes.csv` | 未完整生成；只比對共同coverage，缺日期另列不能跳過不報 |
+| label與topology比較 | labels記case時間／entity／fault_id／mask差異；topology記entity順序、edge數、實際edge集合差、dangling edges、方向／self-loop設定 | **待補工具**：`R/comparison/labels.csv`、`topology.json` | 未完成；只比較同locator。label分布相同不代表逐case label相同 |
+| Metric／Trace／Log特徵比較 | 每同locator與feature記`own_value,released_value,abs_diff,NaN_status,tolerance,status`，摘要列max/mean abs diff与超過容差數；統計fit範圍与template版本不同另列原因 | **待補工具**：`R/comparison/features.csv`、`summary.json`、`report.md` | 未完成；先確認單位／尺度／feature順序。抽樣fit差異不直接當程式錯誤；不得只報shape相同 |
+
+### 11：encoder訓練紀錄、embedding及下游比較
+
+| 原始要求 | 記錄單位與必需內容 | 明確輸出 | 目前覆蓋與驗收 |
+|---|---|---|---|
+| dataset／模態組合 | 每encoder run：`dataset_path,sha256,entity_type,modality_combination,input_shape,input_feature_order,training_splits,fit_scope`；組合須由實際loader确认，不只依据pkl名字 | 現`T/config.json`／`summary.json`記dataset、entity、shape、splits；**待補**feature／modal明細至`T/input_manifest.json` | 訓練input來源已有；精確模態欄位對照尚需補，不混07 encoder |
+| seed | 每run保存數值seed與隨機初始化設定來源，模型與input對應 | `T/config.json.seed`／`summary.json.seed` | 已保存405；如追加seed另run，不覆盖 |
+| hyperparameters | `input_dims,output_dims,batch_size,lr,max_train_length,epochs`，另外記encoder架構／depth、optimizer、device、source commit与encoding設定以核對預設值 | 已有前六項：`T/config.json.config`与epochs；**待補預設／環境完整快照**：`T/training_configuration.json` | 核心參數已有，完整default來源与encoding設定待補；不把padding當訓練超參數 |
+| loss curve | 每epoch `epoch,loss,elapsed_seconds`完整600點；同資料產生線圖與說明，loss非下游accuracy | 已有`T/loss.csv`／`progress.json`；**待產生圖**：`T/loss_curve.png` | 完整數值已有，圖待產生；圖的點數／終值與CSV一致 |
+| duration | 單位秒；分training、encoding與total duration，記start/end時區；目前summary總時長不能全部稱純訓練 | 已有`T/summary.json.duration_seconds`是訓練加單序列encoding總耗時；progress最後elapsed近似訓練結束；**待補**`T/timing.json` | 總時長已有；精確分段歷史若未記不得虛填，用可取得值与限制說明 |
+| checkpoint | 實際model檔与`path,bytes,sha256,completed_epochs`，中途checkpoint可另存 | 已有`T/model.pkl`、每20epochs中途檔及summary hash | 已完成600epochs；驗收重算hash与可載入，不能只保存檔名 |
+| 自訓vs released embedding差異 | 每split/date/entity：兩來源／hash、timestamps、shape、finite、MAE／max abs diff、比較設定；全覆盖摘要另外計數 | 已有`T/sample_embedding.pkl`及summary的單序列comparison；**待補全量**：`D/embedding_comparison.csv`与`encoding_manifest.json` | 單test序列已完成；全量與feature/modal對應未完成，不把MAE直接解讀為品質優劣 |
+| 下游RCA指標差異 | 每paired seed/entity/metric記released與self-trained值、delta、embedding／dataset／checkpoint hash与split／labels／training設定。分類与定位分别列；無定位输出標pending而非填0 | **待產生／工具待補**：`D/released/`與`D/self_trained/`run artifacts、`D/downstream_comparison.json`／`.csv`／`.md` | 全部待下游；若只一seed不報五seed mean±std；classification-only不足以宣稱完整RCA比較 |
+
+### 核對結論與具體缺口
+
+原始文件指定的保存／回報項目已逐項列在以上六張表，每項有欄位、單位、位置與驗收，沒有用「保留完整證據」代替具體內容。**這是記錄需求已具體化，不是說上述檔案全部已存在。**
+
+仍需補的記錄工具集中於：06獨立parsed labels／explanation、stage與request关联／usage成本／錯誤attempt；07完整y／mask快照及類別分布；08split／前處理條件檢查、逐案例prediction與論文方向表；09精確GT／時間locator及正式update影響；10各stage counts／schema／結構化失敗與數值對照；11完整input／encoding設定、loss圖与paired下游结果。這些都納入對應子任務完成條件，不能僅靠runner成功就勾選。
