@@ -41,6 +41,8 @@
 
 ## Encoder結果及邊界
 
+**2026-10-05來源更正：** 作者下載包提供`embedding_600.pkl`及下游模型，沒有TS2Vec encoder權重。此處released指作者已算好的embedding，不是作者TS2Vec模型。上一輪自訓使用作者released processed dataset，而非本次raw重建資料；因此其效果差異不能歸因於新raw資料。下載包核對、實際輸入hash與追加公開資料seed406對照見[來源說明](encoder_public_provenance.md)。
+
 僅自訓service encoder，node／pod沿用released。下游seed405：service AC@1提升1.14pp、AC@5提升4.55pp，MacroF1下降0.03pp；node／pod AC@1下降2.99／1.16pp。只替換service仍可透過圖模型及重訓影響其他entity輸出。只跑一seed，不能宣稱五seed穩定性，也不能把embedding MAE當模型品質。
 
 原FineTuning入口的source split行為保持原樣，不能聲稱額外建立獨立驗證集。TS2Vec training加單序列檢查總耗時3161.953秒，不冒稱純訓練時間；全150序列encoding耗時3225.64秒。歷史未單獨量測的項目在timing.json明列null。
