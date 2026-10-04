@@ -110,8 +110,7 @@ class MetricGenerator(BaseGenerator):
                         "cloudbed-2",
                     ]:
                         continue
-                    # resource_type_list = ['node', 'container', 'service', 'istio']
-                    resource_type_list = ["istio"]
+                    resource_type_list = ["node", "container", "service", "istio"]
                     for resource_type in resource_type_list:
                         entity_list = self.raw_metric_dao.get_entity_list(resource_type)
                         for entity in entity_list:
@@ -139,15 +138,9 @@ class MetricGenerator(BaseGenerator):
                                     merged_entity
                                 ][metric_name]["std"]
                                 raw_metric_data = np.array(raw_metric_data)
-                                if not (
-                                    np.isnan(common_mean)
-                                    or np.isnan(common_std)
-                                    or common_std == 0
-                                ):
-                                    update_metric_data = (
-                                        raw_metric_data - common_mean
-                                    ) / common_std
-                                    update_metric_data[np.isnan(update_metric_data)] = 0
+                                update_metric_data = MetricGenerator.zscore_values(
+                                    raw_metric_data, common_mean, common_std
+                                )
                                 for i in range(update_metric_data.shape[0]):
                                     raw_data[dataset_type][date][cloud_bed][
                                         resource_type
@@ -159,6 +152,21 @@ class MetricGenerator(BaseGenerator):
         os.makedirs(folder, exist_ok=True)
         with open(f"{folder}/all_metric.pkl", "wb") as f:
             pickle.dump(raw_data, f)
+
+    @staticmethod
+    def zscore_values(values, mean, std):
+        """Do not reuse another feature when a constant/missing metric cannot scale.
+
+        Invalid training statistics produce neutral zeros, recorded as an
+        explicit reconstruction deviation from the source's unassigned branch.
+        This is unrelated to the removed Trace standard-deviation fallback.
+        """
+        values = np.asarray(values, dtype=float)
+        if not np.isfinite(mean) or not np.isfinite(std) or std == 0:
+            return np.zeros_like(values)
+        result = (values - mean) / std
+        result[np.isnan(result)] = 0
+        return result
 
     @staticmethod
     def calculate_statistic(metric_data):
