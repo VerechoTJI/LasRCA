@@ -30,6 +30,13 @@ def replace_embedding(released, replacements, entity_type):
     return result
 
 
+def split_labels(dataset):
+    """Export complete label arrays without changing the training dataset."""
+    return {split: dict(y_marker=np.asarray(value.get('y_marker', [])).tolist(),
+                        y=np.asarray(value['y']).tolist())
+            for split, value in dataset['data'].items()}
+
+
 def encode(output,encoder_run):
     output=Path(output).resolve()
     output.mkdir(parents=True,exist_ok=True)
@@ -117,7 +124,7 @@ def downstream(output, embedding, seed=405,epochs=500):
         model_config={k:str(v) if k=='device' else v for k,v in model_config.items()},embedding_path=str(embedding),embedding_sha256=sha256_file(embedding)))
     started=time.monotonic()
     task=IsolatedFineTuning(data_config,model_config)
-    write_json(output/'split_labels.json',dict((split,dict(y_marker=value.get('y_marker'),y=value['y'])) for split,value in task.dataset['data'].items()))
+    write_json(output/'split_labels.json',split_labels(task.dataset))
     task.train_based_on_representation()
     checkpoint=models/f'model_seed_{seed}.pkl'
     result=dict(seed=seed,checkpoint_path=str(checkpoint),checkpoint_sha256=sha256_file(checkpoint),
