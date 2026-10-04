@@ -40,6 +40,32 @@ def summarize_usage(requests):
     return total
 
 
+def api_equivalent_cost(requests):
+    """Public Standard API price benchmark, never an OAuth subscription charge."""
+    price=0.0
+    missing=0
+    for request in requests:
+        usage=request.get('metadata',{}).get('usage')
+        if not usage:
+            missing+=1
+            continue
+        inputs=int(usage['input_tokens'])
+        outputs=int(usage['output_tokens'])
+        cached=int((usage.get('input_tokens_details') or {}).get('cached_tokens',0))
+        if not 0<=cached<=inputs:
+            raise ValueError('Cached tokens exceed input tokens')
+        long_context=inputs>272000
+        price+=((inputs-cached)*.10+cached*.01)*(2 if long_context else 1)/1e6
+        price+=outputs*.50*(1.5 if long_context else 1)/1e6
+    return dict(cost_kind='public_standard_API_equivalent_estimate_not_actual_OAuth_charge',currency='USD',
+        estimated_api_equivalent_cost=price,actual_oauth_charge=None,missing_usage_requests=missing,
+        pricing_date='2026-10-04',pricing_source='https://developers.openai.com/api/docs/models/gpt-6-luna',
+        oauth_billing_source='https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions',
+        rates_per_million=dict(input=.10,cached_input=.01,output=.50),
+        assumptions='Standard API-equivalent text price; >272K prompt multipliers applied. No regional/Flex/Batch/Fast premium assumed; no separately reported cache writes.',
+        actual_charge_limitation='OAuth uses ChatGPT plan/credits; actual account usage or charges require ChatGPT Settings Usage. API-equivalent estimate is not the user bill.')
+
+
 def export(run):
     run = Path(run).resolve()
     with (ROOT/'temp_data/A/selected_samples/selected_samples_k_0.pkl').open('rb') as f:
@@ -103,8 +129,7 @@ def export(run):
             usage_details=json.dumps(usage)))
     write_csv(run/'usage/request_usage.csv', usage_rows)
     write_json(run/'usage/summary.json',summarize_usage(list(requests.values())))
-    write_json(run/'usage/cost.json',dict(cost_kind='unavailable',currency=None,cost=None,
-        missing_reason='OAuth usage available; no verified account billing amount or applicable token prices have been supplied. Not assumed to be zero.'))
+    write_json(run/'usage/cost.json',api_equivalent_cost(list(requests.values())))
     execution_errors = [dict(case_index=int(case),**state,observed_time=None,
         historical_fields_limitation='Older status has no attempt timestamp or HTTP status')
         for case,state in states.items() if state['status']=='failed']
@@ -126,7 +151,7 @@ def export(run):
     write_json(run/'labeling_report.json',report)
     (run/'labeling_report.md').write_text('# Luna 標註紀錄（非論文演算法）\n\n'+
         f'完成 {n}/{len(samples)} cases；可解析 {len(summaries)} cases；有效標籤 {valid}/{expected} entity occurrences。\n\n'+
-        'parsed_labels、explanations、validation_errors、request usage／關聯與原始四階段文字另存。理由保留第三階段case層級原文，不假造entity理由。未更新dataset。成本資訊尚不可得，不計為零。\n',encoding='utf-8')
+        'parsed_labels、explanations、validation_errors、request usage／關聯與原始四階段文字另存。理由保留第三階段case層級原文，不假造entity理由。未更新dataset。cost.json提供公開Standard API等值成本估算，OAuth帳號實際計費仍不可得，不把估算當實付或填零。\n',encoding='utf-8')
     print(json.dumps(report))
 
 
