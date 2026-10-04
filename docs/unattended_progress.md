@@ -1,5 +1,26 @@
 # LasRCA 工作紀錄（2026-10-04）
 
+## 最新執行快照（15:48；以下舊紀錄保留為歷史）
+
+使用者授權繼續跑完六項的一輪實驗後，再統一驗收比較。網路與DPAPI可用；原始進度文件仍唯讀。每個獨立程式任務已測試並commit，執行中不把工具完成稱為實驗完成。
+
+| 任務 | 已完成的實際證據 | 尚待完成 |
+|---|---|---|
+| 06 | Luna至少22／100 cases四階段完成；重設quota後OAuth check為LUNA_OK，case44已從快取續跑完成 | 全100、最終格式／用量／成本統計。OAuth實際方案費用不可由API牌價推定，仍標不可得 |
+| 07 | 完整before／after y／mask、fault分布及原始特徵／split保護已實作並測試 | 正式100cases dataset、k1五seed各500epochs |
+| 08 | 移除std fallback的k0已完成405～409，每seed500epochs；五份checkpoint hash已驗證。evaluation_five_seed已保存真正跨五seed的mean±std，舊每run摘要另保留 | k1、成對來源核對、逐seed prediction補匯出與論文方向表 |
+| 09 | 20cases／120 entity occurrences離線核對，15個entity標籤不符或格式異常；案例時間locator已由來源索引、全部標籤與觀測內容驗證 | 全100分析、10～20例詳細因果檢查與正式更新影響核對 |
+| 10 | 全量raw inputs已備齊；test原始JSON Ground Truth無損轉5份CSV、241cases。全量4714時間窗label、15拓樸與released均無差異 | 抽樣Log／組裝與修正後Metric重跑；全量Metric／Trace／Log／組裝、counts／schema／特徵對照 |
+| 11 | service TS2Vec seed405、600epochs已完成；實際8個Metric輸入。released下游seed405、500epochs及分類／定位完成，duration145.3秒 | 所有150service序列encoding、替換後下游、成對比較及loss圖。node／pod維持released，須明列部分替換 |
+
+Raw已確認兩個來源差異：公開Metric入口沒有呼叫Istio產生器；generator只啟用Istio標準化，而released node等結果已標準化。已恢復既有四種resource類別處理。另確認全NaN HTTP統計分支沿用上一個GRPC特徵，released也出現對應複製值；改為明確零值會改變raw重建特徵，屬數值修正差異，不能聲稱完全相同。Luna主線使用released processed inputs，此raw修正不影響k0／k1成對訓練輸入。
+
+各run：`runs/lasrca/luna_20261004`、`baseline_no_std`、`raw_20261004`、`raw_full_20261004`、`ts2vec_20261004`、`ts2vec_downstream`、`encoder_pair_20261004`。API failure code只保存安全識別碼，不保存SDK的潛在憑證訊息；執行中的舊runner在下次啟動才使用新失敗分類。
+
+Quota恢復檢查：舊session／local processes不再存在，未完成階段無有效exit code，原因不臆測。各run已保存interruption_snapshot及檔案清單，統一檢查紀錄在`runs/lasrca/recovery_20261004_154516/inspection.json`。保留600epochs encoder及全部已完成k0 checkpoints；Luna成功requests重用。抽樣Metric需重跑四類標準化（修正前all_metric.pkl已另存），Log重跑中斷階段；全量保留前三stage、從Metric DAO重跑。編碼尚無完成檔，需重新encoding。15:46本機回歸94 tests全數通過，包含DPAPI；未更動原始進度文件。
+
+## 歷史紀錄
+
 新進度：補上離線 `llm.export_evidence`，14／100 cases快照：653個預期entity occurrences、78個完成且合法標籤、0摘要解析失敗。保存獨立parsed labels、case層級stage3理由原文、格式錯誤、request/stage關聯、unique request token用量及成本不可得說明（不填0）。新增2項usage測試通過。runner新增失敗attempt append記錄；已執行中的runner不受修改影響，新入口重啟後才使用新增紀錄。這些是本次重現證據工具，非論文演算法。
 
 ## 權限請求失敗

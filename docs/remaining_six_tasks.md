@@ -112,7 +112,7 @@ OAuth與DPAPI是本次新增的登入／憑證保護方式，**與論文方法�
 |---|---|---|
 | 08-A | **【本次設定修正後的基準驗證；非論文新增方法】** 重跑不含std fallback的k=0五seed基準 | 同07的features、split、seed與clipping設定；舊fallback結果僅保存為歷史 |
 | 08-B | **【重現驗證：非論文演算法】** 評估同seed的k=0與Luna k=1，保存逐案例結果 | 兩組checkpoint與prepared dataset來源明確；同一test案例／entity與GT；有實際ranking／prediction可抽查 |
-| 08-C | **【重現驗證：非論文演算法】** 分service／pod／node計算localization及classification | AC@1／3／5及Avg@5；Avg@5核對AC@1～5平均；Micro／Macro Precision、Recall、F1的類別與No fault處理沿用既有定義 |
+| 08-C | **【重現驗證：非論文演算法】** 分service／pod／node計算localization及classification | 原始需求為AC@1／3／5與Micro／Macro Precision、Recall、F1；額外保存AC@2／4與Avg@5作輔助檢查，不能列為原始08新增要求。類別與No fault處理沿用既有定義 |
 | 08-D | **【重現驗證：非論文演算法】** 統計逐seed及五seed彙整 | 成對seed齊全；mean與母體std明確；ratio或percent单位一致；絕對差用百分點，相對差為(k1−k0)/k0，基準0標N/A |
 | 08-E | **【重現驗證：非論文演算法】** 對照論文／released參考結果並解釋差異 | 明列Luna取代GPT-4、clipping與實驗條件差異；論文值需核對原文Table／row，不只抄簡報；改善、下降、無明顯差異均可為有效結果 |
 
@@ -179,7 +179,7 @@ OAuth與DPAPI是本次新增的登入／憑證保護方式，**與論文方法�
 
 | ID | 工作 | 驗收條件 |
 |---|---|---|
-| 11-A | **【公開流程＋本次支援／驗證】** 固定entity／模態组合与training输入 | 本次service、原loader的Metric+Trace+Log資料路線、seed405；實際input維度與組合由loader／metadata核對；train仅normal与train_valid，不fit test |
+| 11-A | **【公開流程＋本次支援／驗證】** 固定entity／模態组合与training输入 | 本次service、seed405；來源檔名為metric_trace_log，但service實際輸入只有8個Metric特徵，不能因檔名宣稱此encoder使用三模態。train僅normal與train_valid，不fit test |
 | 11-B | **【公開流程＋本次支援／驗證】** 完成至少一組600epochs，保存模型與loss | 原TS2Vec算法；input_dims8、output_dims320、batch32、lr0.001、max_train_length3000；完整loss／duration／checkpoint hash与finite檢查 |
 | 11-C | **【公開流程＋本次支援／驗證】** 相同source encoding設定產生全部所需embeddings | causal、sliding_length、padding与released encoding來源核對；所有split/date/entity的timestamps、shape與feature順序可對齊；資料coverage完整 |
 | 11-D | **【公開流程＋本次支援／驗證】** 比較embedding且建立隔離下游dataset | 對齊后報finite、shape、差異摘要；只替換service encoder時，其他entity embeddings沿用released并明列部分替換；cache不能重用舊embedding製成的dataset |
@@ -326,4 +326,4 @@ OAuth與DPAPI是本次新增的登入／憑證保護方式，**與論文方法�
 
 原始文件指定的保存／回報項目已逐項列在以上六張表，每項有欄位、單位、位置與驗收，沒有用「保留完整證據」代替具體內容。**這是記錄需求已具體化，不是說上述檔案全部已存在。**
 
-仍需補的記錄工具集中於：06獨立parsed labels／explanation、stage與request关联／usage成本／錯誤attempt；07完整y／mask快照及類別分布；08split／前處理條件檢查、逐案例prediction與論文方向表；09精確GT／時間locator及正式update影響；10各stage counts／schema／結構化失敗與數值對照；11完整input／encoding設定、loss圖与paired下游结果。這些都納入對應子任務完成條件，不能僅靠runner成功就勾選。
+此處46條為逐項驗收規格；各表的「待補」是規格制定時的狀態，最新執行狀態以[工作紀錄](E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/docs/unattended_progress.md)及實際run artifacts為準。已新增parsed labels／explanation、unique request usage與API等值成本估算、完整y／mask快照及類別分布、逐entity prediction保存、經觀測內容核對的時間locator、各stage counts／schema與結構化失敗、全序列encoding與paired下游工具。仍須以實際完成的實驗輸出逐項驗收，不能只因工具存在而勾選。
