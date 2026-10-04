@@ -27,7 +27,25 @@ STATE_PATH = Path(__file__).resolve().parents[1] / '.lasrca-oauth' / 'account.bi
 
 
 class OAuthError(RuntimeError):
-    pass
+    def __init__(self, message, *, error_code=None, status_code=None, category='oauth_or_api'):
+        super().__init__(message)
+        self.error_code=error_code
+        self.status_code=status_code
+        self.category=category
+
+
+def request_failure(code=None, status=None):
+    """Keep machine error identifiers; never persist SDK messages or credentials."""
+    # Codes are public identifiers. Reject unexpected values instead of logging them.
+    if not isinstance(code,str) or len(code)>100 or not all(c.isalnum() or c=='_' for c in code):
+        code=None
+    if not isinstance(status,int) or not 100<=status<=599:
+        status=None
+    category=('quota_or_rate_limit' if status==429 or (code and any(word in code for word in ('quota','limit','credits')))
+              else 'authorization' if status in (401,403)
+              else 'oauth_or_api')
+    return OAuthError('Luna request failed; partial text was not saved.',
+                      error_code=code,status_code=status,category=category)
 
 
 def protect(data, decrypt=False):
@@ -224,11 +242,12 @@ class LunaClient:
                     self.last_metadata = dict(returned_model=getattr(event.response,'model',None),
                         usage=usage.model_dump() if usage is not None else None)
                 elif event.type in ('response.failed','response.incomplete','error'):
-                    raise OAuthError('Luna response failed or was incomplete; no output saved.')
+                    detail=getattr(getattr(event,'response',None),'error',None)
+                    raise request_failure(getattr(detail,'code',None) or getattr(event,'code',None))
         except OAuthError:
             raise
-        except Exception:
-            raise OAuthError('Luna request failed; check OAuth access, quota, and network.') from None
+        except Exception as error:
+            raise request_failure(getattr(error,'code',None),getattr(error,'status_code',None)) from None
         finally:
             if stream is not None and hasattr(stream,'close'):
                 stream.close()

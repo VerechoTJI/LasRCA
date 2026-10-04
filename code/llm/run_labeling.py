@@ -93,9 +93,10 @@ def run(output, limit=None):
             # Reproduction-only attempt history; never replaces a successful answer.
             error_path = output/'errors/execution_attempts.jsonl'
             error_path.parent.mkdir(parents=True,exist_ok=True)
-            category = 'missing_prompt_or_path' if isinstance(error,FileNotFoundError) else 'oauth_or_api' if type(error).__name__=='OAuthError' else 'other'
+            category = 'missing_prompt_or_path' if isinstance(error,FileNotFoundError) else getattr(error,'category','other')
             attempt = dict(case_index=int(index),stage=stage,error_category=category,
                 error_type=type(error).__name__,message=str(error),http_status=getattr(error,'status_code',None),
+                error_code=getattr(error,'error_code',None),
                 observed_at=datetime.now(timezone.utc).isoformat(),status='failed')
             with error_path.open('a',encoding='utf-8') as f:
                 f.write(json.dumps(attempt,ensure_ascii=False)+'\n')

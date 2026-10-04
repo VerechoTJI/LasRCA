@@ -11,6 +11,17 @@ from llm.luna_oauth import LunaClient, OAuthError, validate_callback
 
 
 class LunaTests(unittest.TestCase):
+    def test_failure_codes_preserved_without_sensitive_messages(self):
+        sdk=Mock()
+        sdk.responses.create.return_value=iter([N(type='response.failed',
+            response=N(error=N(code='subscription_sharing_usage_limit_exceeded',message='secret-token')))])
+        with self.assertRaises(OAuthError) as caught:
+            LunaClient(lambda:sdk).complete('prompt')
+        self.assertEqual(caught.exception.category,'quota_or_rate_limit')
+        self.assertEqual(caught.exception.error_code,'subscription_sharing_usage_limit_exceeded')
+        self.assertNotIn('secret-token',str(caught.exception))
+        self.assertIsNone(oauth.request_failure('Bearer secret-token').error_code)
+
     def test_supported_host_id(self):
         host = oauth.new_host_id()
         self.assertTrue(host.startswith('urn:uuid:'))
