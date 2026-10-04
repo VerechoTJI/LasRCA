@@ -146,7 +146,7 @@ def build_classification_metric_records(
     return records
 
 
-def summarize_metric_records(records):
+def summarize_metric_records(records, *, summary_run_id=None):
     groups = {}
     group_fields = [
         "environment_id",
@@ -158,7 +158,8 @@ def summarize_metric_records(records):
         "entity_type",
     ]
     for record in records:
-        group_key = tuple(record[field] for field in group_fields)
+        group_key = tuple(summary_run_id if field=='run_id' and summary_run_id is not None else record[field]
+                          for field in group_fields)
         for metric in METRIC_FIELDS:
             if metric in record:
                 groups.setdefault((group_key, metric), []).append(

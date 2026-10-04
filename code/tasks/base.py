@@ -438,6 +438,11 @@ class BaseClass(ABC):
                         torch.sigmoid(out[ent_type]).cpu().detach().numpy()
                     )
                     y_true[ent_type].extend(y[ent_type].cpu().detach().numpy())
+        evidence_root = os.environ.get('LASRCA_RUN_DIR')
+        if evidence_root:
+            from experiments.prediction_evidence import save as save_predictions
+            save_predictions(Path(evidence_root)/'predictions',y_pred,y_true,
+                self.dataset['meta_data'],seed=self.model_config['seed'],split=dataset_type,threshold=threshold)
         for ent_type in self.dataset["meta_data"]["ent_types"]:
             y_pred[ent_type], y_true[ent_type] = np.array(y_pred[ent_type]), np.array(
                 y_true[ent_type]

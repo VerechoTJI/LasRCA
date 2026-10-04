@@ -15,6 +15,16 @@ from experiments.evaluation_output import (
 
 
 class EvaluationOutputTests(unittest.TestCase):
+    def test_sweep_summary_combines_independent_seed_runs(self):
+        identities=dict(environment_id='local',dataset='A',track='paired',method='LasRCA',strategy='k0',entity_type='node')
+        records=[dict(identities,run_id=f'run-{i}',seed=405+i,**{'AC@1':i/10}) for i in range(5)]
+        summary=summarize_metric_records(records,summary_run_id='five-seed-sweep')
+        self.assertEqual(len(summary),1)
+        self.assertEqual(summary[0]['count'],5)
+        self.assertAlmostEqual(summary[0]['mean'],.2)
+        self.assertAlmostEqual(summary[0]['std'],(.02)**.5)
+        self.assertEqual(records[0]['run_id'],'run-0')
+
     def setUp(self):
         self.seed_results = [
             {

@@ -48,7 +48,7 @@ def run(output, prepared, k, seeds):
         completed.append(dict(seed=seed,run=str(path.parent.parent),checkpoint=summary['checkpoint_path']))
         write_json(output/'sweep_status.json',dict(k=k,completed=completed,requested_seeds=seeds))
         print(f'k={k} seed={seed} complete',flush=True)
-    write_evaluation_outputs(output/'evaluation',records,summarize_metric_records(records))
+    write_evaluation_outputs(output/'evaluation',records,summarize_metric_records(records,summary_run_id=output.name))
 
 
 if __name__=='__main__':
