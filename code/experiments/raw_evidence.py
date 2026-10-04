@@ -146,6 +146,32 @@ def collect(run,include_inputs=False):
     print(f'Inspected {len(records)} artifacts; {len(errors)} inspection failures',flush=True)
 
 
+def feature_coverage(own, reference, own_counts, reference_counts):
+    """Use the generator's Metric/Trace/Log concatenation order, checking dimensions."""
+    def partition(frame, counts):
+        columns=[column for column in frame.columns if column!='timestamp']
+        if sum(counts.get(modality,0) for modality in ('metric','trace','log'))!=len(columns):
+            raise ValueError('Feature counts do not match the actual observation columns')
+        groups={}
+        start=0
+        for modality in ('metric','trace','log'):
+            end=start+counts.get(modality,0)
+            groups[modality]=columns[start:end]
+            start=end
+        return groups
+    a,b=partition(own,own_counts),partition(reference,reference_counts)
+    rows=[]
+    for modality in a:
+        shared=[column for column in a[modality] if column in b[modality]]
+        rows.append(dict(modality=modality,own_columns=a[modality],released_columns=b[modality],
+            shared_columns=shared,own_only_columns=[c for c in a[modality] if c not in b[modality]],
+            released_only_columns=[c for c in b[modality] if c not in a[modality]],
+            own_feature_count=len(a[modality]),released_feature_count=len(b[modality]),
+            shared_feature_count=len(shared),column_order_equal=a[modality]==b[modality],
+            numeric_comparison_status='shared_features_only' if shared else 'no_shared_features'))
+    return rows
+
+
 def compare(run,released):
     run=Path(run).resolve()
     config=json.loads((run/'config.json').read_text(encoding='utf-8'))
@@ -153,7 +179,7 @@ def compare(run,released):
     released=Path(released).resolve()
     with own_path.open('rb') as f:own=pickle.load(f)
     with released.open('rb') as f:reference=pickle.load(f)
-    summary,samples=[],[]
+    summary,samples,coverage,shapes=[],[],[],[]
     for split,dates in own['data'].items():
         if not dates:continue
         # Explicit sample: first date/cloudbed in each split, first entity/type.
@@ -166,8 +192,15 @@ def compare(run,released):
             name=sorted(entities)[0]
             a=entities[name]
             b=reference['data'][split][date][entity_type][name]
+            locator=dict(split=split,date=date,entity_type=entity_type,entity=name)
+            coverage.extend(dict(**locator,**row) for row in feature_coverage(a,b,
+                own['meta_data']['ent_feature_num'][entity_type],reference['meta_data']['ent_feature_num'][entity_type]))
             shared=[c for c in a.columns if c!='timestamp' and c in b.columns]
             aligned=a.merge(b,on='timestamp',suffixes=('_own','_released'),how='inner')
+            shapes.append(dict(**locator,own_rows=len(a),own_columns=len(a.columns),released_rows=len(b),
+                released_columns=len(b.columns),aligned_timestamps=len(aligned),
+                own_unmatched_timestamps=len(a)-len(aligned),released_unmatched_timestamps=len(b)-len(aligned),
+                own_timestamp_unique=bool(a['timestamp'].is_unique),released_timestamp_unique=bool(b['timestamp'].is_unique)))
             for column in shared:
                 x=aligned[column+'_own'].to_numpy()
                 y=aligned[column+'_released'].to_numpy()
@@ -184,6 +217,9 @@ def compare(run,released):
     output=run/'comparison'
     write_csv(output/'feature_summary.csv',summary)
     write_csv(output/'feature_samples.csv',samples)
+    write_csv(output/'shapes.csv',shapes)
+    write_json(output/'feature_coverage.json',coverage)
+    write_csv(output/'feature_coverage.csv',coverage)
     meta={key:dict(own=own['meta_data'].get(key),released=reference['meta_data'].get(key),equal=own['meta_data'].get(key)==reference['meta_data'].get(key))
           for key in ('ent_types','ent_names','ent_type_index','ent_feature_num','o11y_names')}
     write_json(output/'metadata_topology_alignment.json',meta)
@@ -191,7 +227,7 @@ def compare(run,released):
         released_path=str(released),released_sha256=sha256_file(released),
         sampling_policy='first date/cloudbed per available split, first entity per type; first five timestamps shown per shared feature',
         feature_rows=len(summary),numeric_tolerance=1e-6,
-        limitations='Metadata alignment is not an edge-set comparison. Labels and exact topology edges need separate evidence. Sample-fit statistics may differ from full-fit.'))
+        limitations='Numeric differences cover shared feature names only; absent or differently named features are explicitly listed in feature_coverage. No shared features is not a numeric match. Metadata alignment is not an edge-set comparison. Labels and exact topology edges need separate evidence. Sample-fit statistics may differ from full-fit.'))
     print('Released feature sampling comparison written')
 
 

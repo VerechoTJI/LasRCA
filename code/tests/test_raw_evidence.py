@@ -2,10 +2,20 @@ from pathlib import Path
 import tempfile
 import unittest
 import numpy as np
-from experiments.raw_evidence import inspect_csv,inspect_value
+import pandas as pd
+from experiments.raw_evidence import inspect_csv,inspect_value,feature_coverage
 
 
 class RawEvidenceTests(unittest.TestCase):
+    def test_different_log_features_are_not_reported_as_numeric_matches(self):
+        own=pd.DataFrame({'timestamp':[1],'CPU':[2.],'new pattern':[1.]})
+        reference=pd.DataFrame({'timestamp':[1],'CPU':[2.],'old pattern':[1.]})
+        rows=feature_coverage(own,reference,{'metric':1,'log':1},{'metric':1,'log':1})
+        log=next(row for row in rows if row['modality']=='log')
+        self.assertEqual(log['numeric_comparison_status'],'no_shared_features')
+        self.assertEqual(log['own_only_columns'],['new pattern'])
+        self.assertEqual(log['released_only_columns'],['old pattern'])
+        with self.assertRaises(ValueError):feature_coverage(own,reference,{'metric':1},{'metric':1,'log':1})
     def test_multiline_log_messages_count_as_records(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/'logs.csv'
