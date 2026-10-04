@@ -13,6 +13,22 @@
 - 標準差 fallback 已移除；保留目前設定的 percentile clipping，且零 IQR 使用原始數值座標。五個 seeds 的正式比較要採一致設定，不能直接混用舊 fallback checkpoints。
 - 每個獨立完成的程式／文件任務驗證後 commit；長時間實驗保留獨立 run artifacts。作者 released 產物、原始 archives、synced sources 與原始進度文件不覆寫。
 
+## 與論文方法的關係
+
+以下標示用於區分「執行公開流程」與「本次為了執行、驗證或保存證據而增加的工作」。共同出現在同一子任務時，不能把新增工具歸為論文方法。
+
+| 標示 | 意義 | 本次例子 |
+|---|---|---|
+| **執行支援：與論文方法無關** | 本次新增的執行、紀錄或維護功能，不列為論文方法或演算法重現成果 | request快取／續跑、run目錄、status／logs、SHA-256、環境紀錄、token與成本統計、隔離輸出／cache、commit |
+| **重現驗證：非論文演算法** | 用來判定重現是否成立、解釋差異的檢查或分析；不代表作者提出此驗收程序 | 單元測試、finite檢查、schema／shape、資料差異、GT錯標分析、mean±std彙整、論文對照、待驗證清單 |
+| **相容性修正：非論文方法** | 為讓公開程式在本機或完整流程中可執行所做的工程修正 | Windows路徑、UTF-8、缺少Istio產生呼叫、prompt讀寫路徑修正 |
+| **實驗設定差異：非原論文條件** | 會改變輸入或模型，不能只稱執行支援，也不能歸入原論文方法 | GPT-6 Luna取代GPT-4、本機額外percentile clipping、至少一組自訓encoder的部分替換範圍 |
+| **公開流程＋本次支援／驗證** | 執行作者公開的處理或訓練流程，同時加入本次工具或驗收 | 四階段LLM、y／mask更新、五seed訓練、raw處理、TS2Vec／下游執行；流程與新增支援各自區分 |
+
+OAuth與DPAPI是本次新增的登入／憑證保護方式，**與論文方法無關**；Luna模型替換則另屬實驗條件差異。percentile clipping是會改變模型輸入的本機處理差異，不能被歸為只加紀錄。標準差fallback已移除，不作為後續工作項目。
+
+本文件所有「驗收条件／完成證據／待驗證方法／失敗處理」都是本次重現管理與驗證要求，**不是論文演算法的新增步驟**。其中引用的指標與公開流程仍須按原程式及論文原文核對；保存或檢查它們的工具不列為論文方法。
+
 ## 「Luna 全量標註」的意思
 
 「全量」的分母是選樣檔中的100個故障案例／子圖，並非整個 CCF AIOps 原始資料集。每個子圖含多個 resource entities；同一 entity 可以在不同故障案例中出現，所以「100案例」、「entity occurrences」、「API請求數」、「新增標籤數」是不同單位。
@@ -32,11 +48,11 @@
 
 | 共用子任務 | 必要性／行動 | 完成證據 |
 |---|---|---|
-| P-01 固定輸入 | 為避免續跑混入不同選樣、dataset或prompt，記錄實際路徑、SHA-256、source commit及設定 | run manifest；續跑時檢查 model／selection，prompt hash關聯請求 |
-| P-02 固定正式比較條件 | k=0與k=1使用相同原始特徵、train／valid／test索引、GT、seed與前處理；只有新增LLM labels的訓練資訊不同 | 實際prepared dataset、split、preprocessing及checkpoint的可核對來源 |
-| P-03 分開訓練與評估資料 | GT用於分析與評估；不得被新增到LLM prompts或用來自動修正LLM labels | prompt來源檢查；label update差異；test與valid未變 |
-| P-04 保存可恢復結果（與論文方法無關） | 本次新增的實驗執行輔助功能：成功請求續用，失敗保留狀態；不把中斷回答寫成標籤 | request cache、stage logs、status；恢復不重付已成功請求；不列為論文方法或重現成果 |
-| P-05 區分程式與實驗 | 依「未開始／工具完成／部分執行／實驗完成」記錄；只有產出齊全才驗收 | 本文件的任務狀態與實際run目錄一致 |
+| P-01 固定輸入 | **【執行支援：與論文方法無關】** 為避免續跑混入不同選樣、dataset或prompt，記錄實際路徑、SHA-256、source commit及設定 | run manifest；續跑時檢查 model／selection，prompt hash關聯請求 |
+| P-02 固定正式比較條件 | **【重現驗證：非論文演算法】** k=0與k=1使用相同原始特徵、train／valid／test索引、GT、seed與前處理；只有新增LLM labels的訓練資訊不同 | 實際prepared dataset、split、preprocessing及checkpoint的可核對來源 |
+| P-03 分開訓練與評估資料 | **【重現驗證：非論文演算法】** GT用於分析與評估；不得被新增到LLM prompts或用來自動修正LLM labels | prompt來源檢查；label update差異；test與valid未變 |
+| P-04 保存可恢復結果（與論文方法無關） | **【執行支援：與論文方法無關】** 本次新增的實驗執行輔助功能：成功請求續用，失敗保留狀態；不把中斷回答寫成標籤 | request cache、stage logs、status；恢復不重付已成功請求；不列為論文方法或重現成果 |
+| P-05 區分程式與實驗 | **【重現驗證：非論文演算法】** 依「未開始／工具完成／部分執行／實驗完成」記錄；只有產出齊全才驗收 | 本文件的任務狀態與實際run目錄一致 |
 
 依賴順序：06→07→08；09從06同步收集、用07更新結果補齊影響分析。10可獨立進行；11使用released processed dataset時不必等待10，使用raw重建資料時才依賴10。本次至少完成一組encoder採前者。
 
@@ -50,11 +66,11 @@
 
 | ID | 工作 | 驗收條件 |
 |---|---|---|
-| 06-A | 檢查選樣、第一階段prompt與entity對應；核對所有預期prompt檔 | 100個sample_index可定位；所需node／pod觀測檔存在；不重選案例 |
-| 06-B | 驗證OAuth、四階段單例與UTF-8讀寫 | Luna實際回傳成功；四階段串接；同一prompt路徑可讀；原始文字未因編碼損壞 |
-| 06-C | 續跑全部100案例，保存每階段prompt／response及成功請求 | 100個案例均有明確狀態；未完成、失敗与完成分開；認證／額度失敗不連續轟炸請求 |
-| 06-D | 解析摘要並核對entity keys與exact_fault_type | 缺漏、額外entity、非字串／list、未知類別、JSON失敗逐項計數；有效標籤有case／entity locator |
-| 06-E | 彙整request／returned model、usage、duration與成本資訊 | 分別列case完成率、可解析率、有效entity標籤比例；統計實際成功請求usage，不把cache hits算新請求；費率／計費資訊不可得時明列不可得，不能填0 |
+| 06-A | **【重現驗證：非論文演算法】** 檢查選樣、第一階段prompt與entity對應；核對所有預期prompt檔 | 100個sample_index可定位；所需node／pod觀測檔存在；不重選案例 |
+| 06-B | **【本次OAuth／相容性修正＋公開流程驗證；非論文方法】** 驗證OAuth、四階段單例與UTF-8讀寫 | Luna實際回傳成功；四階段串接；同一prompt路徑可讀；原始文字未因編碼損壞 |
+| 06-C | **【公開流程＋本次支援／驗證】** 續跑全部100案例，保存每階段prompt／response及成功請求 | 100個案例均有明確狀態；未完成、失敗与完成分開；認證／額度失敗不連續轟炸請求 |
+| 06-D | **【重現驗證：非論文演算法】** 解析摘要並核對entity keys與exact_fault_type | 缺漏、額外entity、非字串／list、未知類別、JSON失敗逐項計數；有效標籤有case／entity locator |
+| 06-E | **【執行支援：與論文方法無關】** 彙整request／returned model、usage、duration與成本資訊 | 分別列case完成率、可解析率、有效entity標籤比例；統計實際成功請求usage，不把cache hits算新請求；費率／計費資訊不可得時明列不可得，不能填0 |
 
 ### 程式、產出與現況
 
@@ -72,11 +88,11 @@
 
 | ID | 工作 | 驗收條件 |
 |---|---|---|
-| 07-A | 凍結更新前prepared dataset與100cases回答；將LLM故障名稱映射到數值類別 | mapping／已知名稱別名明確；No fault有明確值；未知或非法值不冒充正常 |
-| 07-B | 只更新選中unlabeled case/entity的y／y_mask，另存k1_luna.pkl | 原檔不覆寫；漏標／無效標籤保留原值与mask；不新增random-labeling副作用 |
-| 07-C | 驗證dataset差異與統計 | features、topology、train／valid／test索引及valid／test labels不變；列更新前後y／mask、新增mask數、覆寫數、忽略原因、故障類別分布 |
-| 07-D | 以seed405跑完整設定的單seed，檢查實際讀取獨立dataset | loss、gradient、parameter與prediction finite；500epochs完成；實際prepared dataset hash可核對，不能只記上游raw hash |
-| 07-E | 相同設定完成405–409，保存五組模型與訓練證據 | 各seed都有checkpoint／SHA-256、完整loss與duration／exit status；不得用released模型替代失敗訓練；已完成405可直接算入五組 |
+| 07-A | **【公開流程＋本次支援／驗證】** 凍結更新前prepared dataset與100cases回答；將LLM故障名稱映射到數值類別 | mapping／已知名稱別名明確；No fault有明確值；未知或非法值不冒充正常 |
+| 07-B | **【公開流程＋本次支援／驗證】** 只更新選中unlabeled case/entity的y／y_mask，另存k1_luna.pkl | 原檔不覆寫；漏標／無效標籤保留原值与mask；不新增random-labeling副作用 |
+| 07-C | **【重現驗證：非論文演算法】** 驗證dataset差異與統計 | features、topology、train／valid／test索引及valid／test labels不變；列更新前後y／mask、新增mask數、覆寫數、忽略原因、故障類別分布 |
+| 07-D | **【公開流程＋本次支援／驗證】** 以seed405跑完整設定的單seed，檢查實際讀取獨立dataset | loss、gradient、parameter與prediction finite；500epochs完成；實際prepared dataset hash可核對，不能只記上游raw hash |
+| 07-E | **【公開流程＋本次支援／驗證】** 相同設定完成405–409，保存五組模型與訓練證據 | 各seed都有checkpoint／SHA-256、完整loss與duration／exit status；不得用released模型替代失敗訓練；已完成405可直接算入五組 |
 
 ### 程式、產出與現況
 
@@ -94,11 +110,11 @@
 
 | ID | 工作 | 驗收條件 |
 |---|---|---|
-| 08-A | 重跑不含std fallback的k=0五seed基準 | 同07的features、split、seed與clipping設定；舊fallback結果僅保存為歷史 |
-| 08-B | 評估同seed的k=0與Luna k=1，保存逐案例結果 | 兩組checkpoint與prepared dataset來源明確；同一test案例／entity與GT；有實際ranking／prediction可抽查 |
-| 08-C | 分service／pod／node計算localization及classification | AC@1／3／5及Avg@5；Avg@5核對AC@1～5平均；Micro／Macro Precision、Recall、F1的類別與No fault處理沿用既有定義 |
-| 08-D | 統計逐seed及五seed彙整 | 成對seed齊全；mean與母體std明確；ratio或percent单位一致；絕對差用百分點，相對差為(k1−k0)/k0，基準0標N/A |
-| 08-E | 對照論文／released參考結果並解釋差異 | 明列Luna取代GPT-4、clipping與實驗條件差異；論文值需核對原文Table／row，不只抄簡報；改善、下降、無明顯差異均可為有效結果 |
+| 08-A | **【本次設定修正後的基準驗證；非論文新增方法】** 重跑不含std fallback的k=0五seed基準 | 同07的features、split、seed與clipping設定；舊fallback結果僅保存為歷史 |
+| 08-B | **【重現驗證：非論文演算法】** 評估同seed的k=0與Luna k=1，保存逐案例結果 | 兩組checkpoint與prepared dataset來源明確；同一test案例／entity與GT；有實際ranking／prediction可抽查 |
+| 08-C | **【重現驗證：非論文演算法】** 分service／pod／node計算localization及classification | AC@1／3／5及Avg@5；Avg@5核對AC@1～5平均；Micro／Macro Precision、Recall、F1的類別與No fault處理沿用既有定義 |
+| 08-D | **【重現驗證：非論文演算法】** 統計逐seed及五seed彙整 | 成對seed齊全；mean與母體std明確；ratio或percent单位一致；絕對差用百分點，相對差為(k1−k0)/k0，基準0標N/A |
+| 08-E | **【重現驗證：非論文演算法】** 對照論文／released參考結果並解釋差異 | 明列Luna取代GPT-4、clipping與實驗條件差異；論文值需核對原文Table／row，不只抄簡報；改善、下降、無明顯差異均可為有效結果 |
 
 ### 程式、產出與現況
 
@@ -116,10 +132,10 @@
 
 | ID | 工作 | 驗收條件 |
 |---|---|---|
-| 09-A | 逐case/entity對照GT與最終標籤，同步讀06格式與執行狀態 | 區分API／路徑失敗、不可解析、缺標、未知類別、多值標籤、錯entity、誤報與漏報；執行失敗不算成故障類別誤判 |
-| 09-B | 整理10～20個實際錯誤或格式異常案例 | case、entity、時間／日期locator、GT來源／值、LLM值、原始回答、stage paths及錯誤類型齊全；同一case多entity明確標示，不能冒充多個獨立case |
-| 09-C | 關聯07的實際y／mask差異 | 區分錯標被採用、格式異常被忽略、原mask保留；目前partial分析只可稱模擬影響，正式更新後換成實際diff |
-| 09-D | 統計與因果說明 | 分母分別列案例數與可評估entity occurrences；格式／缺標與判斷錯誤分開；歸因某stage時有對應回答證據，無證據只列假設 |
+| 09-A | **【重現驗證：非論文演算法】** 逐case/entity對照GT與最終標籤，同步讀06格式與執行狀態 | 區分API／路徑失敗、不可解析、缺標、未知類別、多值標籤、錯entity、誤報與漏報；執行失敗不算成故障類別誤判 |
+| 09-B | **【重現驗證：非論文演算法】** 整理10～20個實際錯誤或格式異常案例 | case、entity、時間／日期locator、GT來源／值、LLM值、原始回答、stage paths及錯誤類型齊全；同一case多entity明確標示，不能冒充多個獨立case |
+| 09-C | **【重現驗證：非論文演算法】** 關聯07的實際y／mask差異 | 區分錯標被採用、格式異常被忽略、原mask保留；目前partial分析只可稱模擬影響，正式更新後換成實際diff |
+| 09-D | **【重現驗證：非論文演算法】** 統計與因果說明 | 分母分別列案例數與可評估entity occurrences；格式／缺標與判斷錯誤分開；歸因某stage時有對應回答證據，無證據只列假設 |
 
 ### 程式、產出與現況
 
@@ -137,13 +153,13 @@
 
 | ID | 工作 | 驗收條件 |
 |---|---|---|
-| 10-A | 盤點normal.tar、faults.zip、test_data.7z与GT、日期／cloudbed範圍 | 來源与檔案hash、解壓manifest、預期檔案清單、磁碟容量；原始archive不改寫；抽樣與全量范围分開 |
-| 10-B | 修復公開入口的產生／讀取依賴 | node／container／service／istio產出完整；原公開入口漏istio的證據保存；修改使用既有process函式，不造資料 |
-| 10-C | 完成抽樣Metric流程并核對標準化 | 每類schema、timestamp、entity、NaN/Inf與數量；只處理istio的腳本狀態與released数值核對；未處理／零std／全NaN分支不能沿用上一特徵結果 |
-| 10-D | 完成Trace、Log、topology与time-window抽樣流程 | Trace依同時間粒度聚合並核對統計；Log parsing／template／TF-IDF來源和fit範圍明確；topology edge端點有效；GT日期與時區正確 |
-| 10-E | 組裝抽樣final dataset並同locator對照released | modalities与特徵順序、shape、labels、topology、實際数值差異；抽樣fit的統計與全量不同不能直接宣稱演算法錯誤 |
-| 10-F | 在抽樣驗證後擴展normal／train_valid／test全部範圍 | 各stage輸入輸出数量／schema／duration／exit status／失敗清單；日期与cloudbed完整；test不混入不該fit的統計；缺檔有明確處置 |
-| 10-G | 彙整final temp_data manifest及抽樣數值比較 | 所有產物路径／大小／hash，資料coverage與缺值摘要；一致、不同、未比對分開列；差異原因可追溯至stage或列待驗證 |
+| 10-A | **【重現驗證：非論文演算法】** 盤點normal.tar、faults.zip、test_data.7z与GT、日期／cloudbed範圍 | 來源与檔案hash、解壓manifest、預期檔案清單、磁碟容量；原始archive不改寫；抽樣與全量范围分開 |
+| 10-B | **【相容性修正：非論文方法】** 修復公開入口的產生／讀取依賴 | node／container／service／istio產出完整；原公開入口漏istio的證據保存；修改使用既有process函式，不造資料 |
+| 10-C | **【公開流程＋本次支援／驗證】** 完成抽樣Metric流程并核對標準化 | 每類schema、timestamp、entity、NaN/Inf與數量；只處理istio的腳本狀態與released数值核對；未處理／零std／全NaN分支不能沿用上一特徵結果 |
+| 10-D | **【公開流程＋本次支援／驗證】** 完成Trace、Log、topology与time-window抽樣流程 | Trace依同時間粒度聚合並核對統計；Log parsing／template／TF-IDF來源和fit範圍明確；topology edge端點有效；GT日期與時區正確 |
+| 10-E | **【重現驗證：非論文演算法】** 組裝抽樣final dataset並同locator對照released | modalities与特徵順序、shape、labels、topology、實際数值差異；抽樣fit的統計與全量不同不能直接宣稱演算法錯誤 |
+| 10-F | **【公開流程＋本次支援／驗證】** 在抽樣驗證後擴展normal／train_valid／test全部範圍 | 各stage輸入輸出数量／schema／duration／exit status／失敗清單；日期与cloudbed完整；test不混入不該fit的統計；缺檔有明確處置 |
+| 10-G | **【重現驗證：非論文演算法】** 彙整final temp_data manifest及抽樣數值比較 | 所有產物路径／大小／hash，資料coverage與缺值摘要；一致、不同、未比對分開列；差異原因可追溯至stage或列待驗證 |
 
 ### 程式、產出與現況
 
@@ -163,12 +179,12 @@
 
 | ID | 工作 | 驗收條件 |
 |---|---|---|
-| 11-A | 固定entity／模態组合与training输入 | 本次service、原loader的Metric+Trace+Log資料路線、seed405；實際input維度與組合由loader／metadata核對；train仅normal与train_valid，不fit test |
-| 11-B | 完成至少一組600epochs，保存模型與loss | 原TS2Vec算法；input_dims8、output_dims320、batch32、lr0.001、max_train_length3000；完整loss／duration／checkpoint hash与finite檢查 |
-| 11-C | 相同source encoding設定產生全部所需embeddings | causal、sliding_length、padding与released encoding來源核對；所有split/date/entity的timestamps、shape與feature順序可對齊；資料coverage完整 |
-| 11-D | 比較embedding且建立隔離下游dataset | 對齊后報finite、shape、差異摘要；只替換service encoder時，其他entity embeddings沿用released并明列部分替換；cache不能重用舊embedding製成的dataset |
-| 11-E | paired released／self-trained下游訓練与評估 | 同split、labels、seed、epochs、optimizer等；至少一seed作可驗收的下游對照，若報mean±std則需完整指定seed集合；保存各checkpoint与embedding／dataset hash |
-| 11-F | 核對下游指標範圍與報告 | 現有fine-tuning入口主要提供故障類型分類；若需求包含localization，需實作／驗證合理ranking與相同GT評估。沒有定位結果時不得把classification-only寫成完整RCA比較 |
+| 11-A | **【公開流程＋本次支援／驗證】** 固定entity／模態组合与training输入 | 本次service、原loader的Metric+Trace+Log資料路線、seed405；實際input維度與組合由loader／metadata核對；train仅normal与train_valid，不fit test |
+| 11-B | **【公開流程＋本次支援／驗證】** 完成至少一組600epochs，保存模型與loss | 原TS2Vec算法；input_dims8、output_dims320、batch32、lr0.001、max_train_length3000；完整loss／duration／checkpoint hash与finite檢查 |
+| 11-C | **【公開流程＋本次支援／驗證】** 相同source encoding設定產生全部所需embeddings | causal、sliding_length、padding与released encoding來源核對；所有split/date/entity的timestamps、shape與feature順序可對齊；資料coverage完整 |
+| 11-D | **【公開流程＋本次支援／驗證】** 比較embedding且建立隔離下游dataset | 對齊后報finite、shape、差異摘要；只替換service encoder時，其他entity embeddings沿用released并明列部分替換；cache不能重用舊embedding製成的dataset |
+| 11-E | **【公開流程＋本次支援／驗證】** paired released／self-trained下游訓練与評估 | 同split、labels、seed、epochs、optimizer等；至少一seed作可驗收的下游對照，若報mean±std則需完整指定seed集合；保存各checkpoint与embedding／dataset hash |
+| 11-F | **【重現驗證：非論文演算法】** 核對下游指標範圍與報告 | 現有fine-tuning入口主要提供故障類型分類；若需求包含localization，需實作／驗證合理ranking與相同GT評估。沒有定位結果時不得把classification-only寫成完整RCA比較 |
 
 ### 程式、產出與現況
 
@@ -180,26 +196,26 @@
 
 | ID | 待驗證項目 | 為何必要／驗證方式 | 影響與未通過處理 |
 |---|---|---|---|
-| V-01 | 100cases所需第一階段prompt齊全且與選樣對應 | 對sample/entity檢查檔案與原內容來源 | 缺檔先補生成步驟，不能算完成或換案例 |
-| V-02 | prompts未新增GT或使用評估標籤修正回答 | 查生成來源與template內容；保留原prompt語義 | 有新增洩漏則修正並隔離重跑受影響案例 |
-| V-03 | 完成stage的回答是否可解析、entity及故障名稱合法 | 全部summaries驗證，另算有效標籤比例 | 格式問題保留原mask，記錄影響；不得靜默填No fault |
-| V-04 | usage／returned model／成本可追溯 | 核對completed request metadata、重用與新請求 | 缺usage或費率明列缺失，不能宣稱精確成本 |
-| V-05 | prepared dataset／split與實際模型讀取一致 | hash實際cache与索引，抽查run輸入 | 正式07／08暫停，修正入口與provenance |
-| V-06 | 更新是否僅限所選unlabeled y／mask | 全dataset差異，features／topology／valid／test不變 | 不符合則拒絕正式訓練，修復更新範圍 |
-| V-07 | clipping-only能否完成五seed訓練 | 移除std fallback後完整單seed再五seed，檢查finite | 保留失敗證據與診斷；不自行恢復已移除fallback |
-| V-08 | k=0／k=1可公平成對比較 | 相同features、split、GT、seed與前處理，labels差異明确 | 条件不同先重跑相應基準，不直接比較歷史結果 |
-| V-09 | AC@k／Avg@5與micro／macro定義對齊論文 | 核對code、逐案例計算與原文Table row | 定義不同分開報告；簡報表格只當整理參考 |
-| V-10 | 實際錯誤案例數與stage歸因是否足夠 | 全量audit與原stage回答／實際label diff關聯 | 不足10例如實報告；因果證據不足不指定根因stage |
-| V-11 | raw缺少的Istio中間檔能由原函式生成 | 修正入口後核對四類产物與讀取成功 | 若仍缺檔，按raw來源／config／函式分支診斷 |
-| V-12 | 只標準化Istio是否对应released產出 | 同日期／entity／feature对照raw、統計與released | 不能直接推定四類同處理；確認後才補完整入口 |
-| V-13 | 零std、全NaN、缺feature分支是否正確 | 針對邊界輸入檢查update_metric_data等變數 | 未賦值或沿用前特徵則修復並回歸測試 |
-| V-14 | 抽樣fit與全量fit造成的差異 | 記錄统计／Log template的fit範圍与date coverage | 抽樣結果只驗證流程；全量後再判斷數值重現 |
-| V-15 | Trace／Log／時區／topology在raw重建中完整 | 同locator核對time windows、entity索引與features | 不用released檔補空缺来冒充重建成功 |
-| V-16 | test是否進入不應fit的統計或encoder训练 | 讀loader与各analysis stage範圍并記錄 | 源程式若如此需如實聲明與分開處理，不靜默稱無洩漏 |
-| V-17 | TS2Vec全序列encoding與released可對齊 | 逐split/date/entity確認shape、timestamps与設定 | 單序列通過不足；缺coverage先補encoding |
-| V-18 | embedding替換是否被舊fine-tuning cache忽略 | 隔離兩路cache，核對實際讀取embedding hash | 修正dataset routing並重新建立cache |
-| V-19 | 下游能提供哪些RCA指標 | 查fine-tuning输出与ranking／GT，分類與定位分列 | 缺定位時補可驗證評估，或如實標明未完成 |
-| V-20 | 模型差異如何限制論文比較 | 明列Luna／GPT-4、前處理与raw重建差異 | 不把本次數值視為GPT-4原條件的精確重現 |
+| V-01 | **【重現驗證：非論文演算法】** 100cases所需第一階段prompt齊全且與選樣對應 | 對sample/entity檢查檔案與原內容來源 | 缺檔先補生成步驟，不能算完成或換案例 |
+| V-02 | **【重現驗證：非論文演算法】** prompts未新增GT或使用評估標籤修正回答 | 查生成來源與template內容；保留原prompt語義 | 有新增洩漏則修正並隔離重跑受影響案例 |
+| V-03 | **【重現驗證：非論文演算法】** 完成stage的回答是否可解析、entity及故障名稱合法 | 全部summaries驗證，另算有效標籤比例 | 格式問題保留原mask，記錄影響；不得靜默填No fault |
+| V-04 | **【重現驗證：非論文演算法】** usage／returned model／成本可追溯 | 核對completed request metadata、重用與新請求 | 缺usage或費率明列缺失，不能宣稱精確成本 |
+| V-05 | **【重現驗證：非論文演算法】** prepared dataset／split與實際模型讀取一致 | hash實際cache与索引，抽查run輸入 | 正式07／08暫停，修正入口與provenance |
+| V-06 | **【重現驗證：非論文演算法】** 更新是否僅限所選unlabeled y／mask | 全dataset差異，features／topology／valid／test不變 | 不符合則拒絕正式訓練，修復更新範圍 |
+| V-07 | **【重現驗證：非論文演算法】** clipping-only能否完成五seed訓練 | 移除std fallback後完整單seed再五seed，檢查finite | 保留失敗證據與診斷；不自行恢復已移除fallback |
+| V-08 | **【重現驗證：非論文演算法】** k=0／k=1可公平成對比較 | 相同features、split、GT、seed與前處理，labels差異明确 | 条件不同先重跑相應基準，不直接比較歷史結果 |
+| V-09 | **【重現驗證：非論文演算法】** AC@k／Avg@5與micro／macro定義對齊論文 | 核對code、逐案例計算與原文Table row | 定義不同分開報告；簡報表格只當整理參考 |
+| V-10 | **【重現驗證：非論文演算法】** 實際錯誤案例數與stage歸因是否足夠 | 全量audit與原stage回答／實際label diff關聯 | 不足10例如實報告；因果證據不足不指定根因stage |
+| V-11 | **【重現驗證：非論文演算法】** raw缺少的Istio中間檔能由原函式生成 | 修正入口後核對四類产物與讀取成功 | 若仍缺檔，按raw來源／config／函式分支診斷 |
+| V-12 | **【重現驗證：非論文演算法】** 只標準化Istio是否对应released產出 | 同日期／entity／feature对照raw、統計與released | 不能直接推定四類同處理；確認後才補完整入口 |
+| V-13 | **【重現驗證：非論文演算法】** 零std、全NaN、缺feature分支是否正確 | 針對邊界輸入檢查update_metric_data等變數 | 未賦值或沿用前特徵則修復並回歸測試 |
+| V-14 | **【重現驗證：非論文演算法】** 抽樣fit與全量fit造成的差異 | 記錄统计／Log template的fit範圍与date coverage | 抽樣結果只驗證流程；全量後再判斷數值重現 |
+| V-15 | **【重現驗證：非論文演算法】** Trace／Log／時區／topology在raw重建中完整 | 同locator核對time windows、entity索引與features | 不用released檔補空缺来冒充重建成功 |
+| V-16 | **【重現驗證：非論文演算法】** test是否進入不應fit的統計或encoder训练 | 讀loader与各analysis stage範圍并記錄 | 源程式若如此需如實聲明與分開處理，不靜默稱無洩漏 |
+| V-17 | **【重現驗證：非論文演算法】** TS2Vec全序列encoding與released可對齊 | 逐split/date/entity確認shape、timestamps与設定 | 單序列通過不足；缺coverage先補encoding |
+| V-18 | **【重現驗證：非論文演算法】** embedding替換是否被舊fine-tuning cache忽略 | 隔離兩路cache，核對實際讀取embedding hash | 修正dataset routing並重新建立cache |
+| V-19 | **【重現驗證：非論文演算法】** 下游能提供哪些RCA指標 | 查fine-tuning输出与ranking／GT，分類與定位分列 | 缺定位時補可驗證評估，或如實標明未完成 |
+| V-20 | **【重現驗證：非論文演算法】** 模型差異如何限制論文比較 | 明列Luna／GPT-4、前處理与raw重建差異 | 不把本次數值視為GPT-4原條件的精確重現 |
 
 ## 完成時應交付的六份結果
 
