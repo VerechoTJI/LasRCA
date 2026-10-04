@@ -305,7 +305,7 @@ class LogGenerator(BaseGenerator):
             pickle.dump(selected_feature_dict, f)
 
     def calculate_word_tf_idf(self):
-        os.makedirs(f'{self.config.param_dict["temp_data_storage"]}/analysis/log')
+        os.makedirs(f'{self.config.param_dict["temp_data_storage"]}/analysis/log', exist_ok=True)
         with open(
             f'{self.config.param_dict["temp_data_storage"]}/analysis/log/istio_words.json'
         ) as f:
