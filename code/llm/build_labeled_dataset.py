@@ -92,6 +92,8 @@ def build(run_directory, allow_partial=False):
     if not any(row['status']=='applied' for row in rows):
         raise ValueError('No valid labels to apply')
     target.parent.mkdir(parents=True,exist_ok=True)
+    from llm.dataset_evidence import save as save_dataset_evidence
+    save_dataset_evidence(target.parent,original,updated,rows)
     with target.open('xb') as f:
         pickle.dump(updated,f)
     write_json(run_directory/'dataset/label_changes.json',rows)
