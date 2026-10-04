@@ -10,23 +10,21 @@
 
 每完成一個獨立可驗收的程式任務，通過相關測試後提交一次。實驗執行結果另記，不能把 runner 完成視為實驗完成。
 
-| 任務 | 狀態 | 證據／限制 |
+| 任務 | 實驗狀態 | 證據／剩餘工作 |
 |---|---|---|
-| OAuth 接入 | 完成；commit 69db66d | case 6 四階段實際驗證；65 tests |
-| 06 runner、續跑與 UTF-8 | 程式完成 | 68 tests；case 0 完整實驗仍在執行。成功請求以 model + prompt hash 保存並續用；失敗請求不快取 |
-| 06 全量 | 待單案例執行完成後啟動 | runs/lasrca/luna_20261004；公開選樣100案例 |
-| 07 Dataset／重訓 | 待執行 | 原始 k=1 程式是重新初始化後訓練，不是載入 k=0；本工作保留原始語義，修正先前計畫中的錯誤假設 |
-| 07-A Dataset 更新及隔離輸入 | 程式完成，正式更新等待100案例 | 單元測試驗證只改選中 unlabeled 的 y/y_mask；test split 不變；16項相關測試通過。`llm.build_labeled_dataset` 與 `--prepared_dataset_path` 避免覆寫 released caches |
-| 08／09 | 等待 LLM 結果與 k=1 | 不預設模型品質改善 |
-| 08 比較工具 | 程式完成 | 2 tests：成對seed/metric檢查、GT一致性、母體std、baseline零的相對差。正式結果等待完整補標及5 seeds重訓 |
-| 09 離線錯誤分析 | 工具及已完成部分驗證完成 | 2案例、15 entity，1 entity與GT不一致；來源／原回答／模擬y-mask影響保存在 runs/lasrca/luna_20261004/audit。未更新正式dataset；不足10個不同錯誤案例，完整結果仍待補標恢復 |
-| 10／11 | 待執行 | raw archives 已存在；GPU 在沙箱可用 |
-| 10 本機抽樣 preprocessing | 執行中 | 使用既有7-Zip解出2022-03-19 cloudbed-1 normal與2022-03-20 cloudbed-1 fault；全部放獨立run。topology、entity edge、time windows已成功；Metric執行中。test尚未納入，因此不是完整重現 |
-| 11 TS2Vec runner | 程式完成；600 epochs訓練執行中 | service／Metric+Trace+Log，seed405、output dims320、batch32、lr0.001；沿用原loader與TS2Vec算法。獨立 runs/lasrca/ts2vec_20261004，前9 epochs loss finite；完成後用source causal encoding設定比較一段test embedding。下游RCA比較仍未完成 |
+| OAuth 接入 | 單例驗證完成 | commit 69db66d；case6 四階段實際驗證；目前跳過網路與DPAPI |
+| 0C-06 Labeling | 部分完成：2／100 cases | cases0、5 已完成；runner／resume完成；剩98cases等待恢復網路與DPAPI；正式usage與成本彙整待全量 |
+| 0C-07 Dataset／重訓 | 工具完成，正式實驗未完成 | 更新與隔離輸入已驗證；等待100cases後更新獨立dataset、seeds405–409的k=1訓練 |
+| 0C-08 比較 | 工具完成，正式結果未完成 | 五seed成對比較工具完成；移除std fallback後須重跑一致設定k=0與k=1；不沿用舊baseline作正式比較 |
+| 0C-09 錯誤分析 | 部分完成 | 2cases／15entities已分析，1entity錯標；完整錯誤分類與案例整理等待全量；不足10個不同錯誤時如實報告 |
+| 0C-10 Raw preprocessing | 抽樣部分完成，出錯停止 | topology、entity edge、time windows、raw metric轉換成功；metric generator找不到istio/adservice-0.csv。需診斷、完成Trace／Log／assembly，再擴展normal/fault/test全量與released比較 |
+| 0C-11 TS2Vec | 600epochs訓練完成，下游未完成 | service／Metric+Trace+Log、seed405、320dims、batch32、lr0.001；耗時3162秒，checkpoint已存。test adservice shape1440×320且finite；與released MAE0.2264。全序列encoding及下游比較待完成；單序列差異不能代表RCA效果 |
 
-本輪本機測試75項全部通過；依使用者指示排除1項需要Windows DPAPI的憑證加密測試，不執行網路推論測試。TS2Vec的max_threads設定會import mkl-service而引入第二份OpenMP runtime，本runner改由Torch直接設定threads，未使用KMP_DUPLICATE_LIB_OK繞過衝突。
+2026-10-04 清理：移除零IQR標準差fallback函式、CLI與各入口設定。保留stored percentile clipping，零IQR用原始座標；非零median邊界已納入回歸檢查。既有歷史run artifacts保持原樣，不能把舊checkpoint視為移除fallback後的結果。實驗不增加權重載入要求。原始reproduction status仍唯讀。
 
-已知需正常使用者權限：OAuth 網路及 DPAPI、含 DPAPI 的 unittest。GPU probe 可在沙箱完成，訓練與本機資料處理優先在沙箱執行。啟用 venv 後使用 `python -m ...` 以便授權固定模組範圍。
+移除fallback後本機測試73項全部通過（刪除2項專測fallback的測試，新增零IQR且median非零的裁切檢查）；依使用者指示排除1項需要Windows DPAPI的憑證加密測試，不執行網路推論測試。TS2Vec的max_threads設定會import mkl-service而引入第二份OpenMP runtime，本runner改由Torch直接設定threads，未使用KMP_DUPLICATE_LIB_OK繞過衝突。
+
+已知需正常使用者權限：OAuth 網路及 DPAPI、含 DPAPI 的 unittest。GPU probe 可在沙箱完成，訓練與本機資料處理優先在沙箱執行。本機執行採 `uv run --no-sync`，不呼叫 Activate.ps1。
 
 若後續授權未取得，記錄動作、時間、原因並跳過依賴工作；不將未回應視為同意。系統強制等待的權限視窗可能無法在30秒取消，屆時不得宣稱已跳過。
 
