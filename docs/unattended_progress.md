@@ -31,3 +31,6 @@
 OAuth 呼叫失敗會停止全量 runner，避免對所有案例重複失敗請求。尚未實作自動重新登入，避免離席時開啟需人工互動的流程。
 
 Dataset 更新不執行原始 `update_dataset.py` 中附帶的 random-labeling 副作用。fault type 數值對照與已知磁碟名稱正規化保留；非法型別、未知類別或漏標保留原 y/y_mask 並記錄，避免把格式錯誤當成 No Fault。JSON 擷取使用標準 decoder 找出完整 object，不全域替換 apostrophe。正式更新要求100案例完成；partial 模式僅供另目錄診斷，不能當作正式重現。
+
+
+2026-10-04 恢復進度：使用者已恢復網路與DPAPI授權；Luna OAuth check通過（LUNA_OK），100cases runner已續跑。先前跳過網路的紀錄為歷史狀態。Raw Metric入口補上istio，2項相關測試通過；保留修正前pipeline status與log，重新執行raw metric及後续步驟。報告記錄公開入口與released中間檔不一致、作者可能分批改腳本執行的推測，以及僅istio標準化仍待數值核對的限制。

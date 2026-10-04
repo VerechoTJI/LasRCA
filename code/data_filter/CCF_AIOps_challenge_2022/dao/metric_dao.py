@@ -250,7 +250,7 @@ class RawMetricDao(BaseClass):
                     os.makedirs(result_cloud_bed_path, exist_ok=True)
                     data_base_path = f'{dataset_detail_dict["base_folder"]}/{date}/{cloud_bed}/metric'
 
-                    for resource_type in ["node", "container", "service"]:
+                    for resource_type in ["node", "container", "service", "istio"]:
                         logger.debug(
                             f"Preprocessing metrics: dataset_type: {dataset_type}, date: {date}, "
                             f"cloudbed: {cloud_bed}, resource_type: {resource_type}."
