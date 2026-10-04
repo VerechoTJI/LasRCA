@@ -58,6 +58,13 @@ def save(output,before,after,changes):
         row.update(labeled_count_before=old['labeled_count'],labeled_count_after=new['labeled_count'],
             net_labeled_change=new['labeled_count']-old['labeled_count'],masked_count_before=old['masked_entity_count'],
             masked_count_after=new['masked_entity_count'])
+        matching=[]
+        if old['split']=='unlabeled':
+            start,end=before['meta_data']['ent_type_index'][old['entity_type']]
+            matching=[r for r in changes if r.get('entity_index') is not None and start<=r['entity_index']<end]
+        row['newly_labeled_count']=sum(r['status']=='applied' and r['mask_before']==0 and r['y_after']==old['fault_id'] for r in matching)
+        row['changed_to_count']=sum(r['status']=='applied' and r['y_before']!=r['y_after'] and r['y_after']==old['fault_id'] for r in matching)
+        row['ignored_at_previous_label_count']=sum(r['status']!='applied' and r.get('y_before')==old['fault_id'] for r in matching)
         rows.append(row)
     write_csv(output/'fault_type_distribution.csv',rows)
     write_json(output/'fault_type_distribution.json',rows)

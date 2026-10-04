@@ -2,6 +2,7 @@ import argparse
 import json
 from pathlib import Path
 import statistics
+import csv
 from experiments.evaluation_output import METRIC_FIELDS
 
 
@@ -44,6 +45,10 @@ def write_report(before_path, after_path, output):
     output = Path(output)
     output.mkdir(parents=True,exist_ok=False)
     (output/'comparison.json').write_text(json.dumps(dict(per_seed=rows,summary=summary),indent=2),encoding='utf-8')
+    for name,records in [('per_seed_comparison.csv',rows),('summary_comparison.csv',summary)]:
+        with (output/name).open('x',encoding='utf-8-sig',newline='') as f:
+            writer=csv.DictWriter(f,fieldnames=list(records[0]))
+            writer.writeheader();writer.writerows(records)
     lines = ['# k=0／k=1 成對比較','','同 seed／entity 配對；std 採母體標準差（ddof=0）。絕對差為百分點；baseline=0 時相對差為 N/A。',
         '',f'k=0: {Path(before_path).resolve()}',f'k=1: {Path(after_path).resolve()}',
         '','| Entity | Metric | k=0 mean ± std | k=1 mean ± std | 差（百分點） | 相對差 |',

@@ -8,6 +8,7 @@ from experiments.artifacts import sha256_file
 from experiments.retraining_comparison import compare_records
 from experiments.run_stage import capture_runtime_environment, execute_logged_command
 from llm.run_labeling import ROOT, write_json
+from llm.export_evidence import write_csv
 
 
 def run(output, own_embedding=None, seed=405):
@@ -40,8 +41,13 @@ def run(output, own_embedding=None, seed=405):
         raise ValueError('Paired downstream labels or splits differ')
     metrics=[json.loads((output/name/'metrics/per_seed_metrics.json').read_text(encoding='utf-8')) for name in variants]
     rows,summary=compare_records(*metrics)
+    protocol={name:dict(configuration=json.loads((output/name/'configuration.json').read_text(encoding='utf-8')),
+        summary=json.loads((output/name/'summary.json').read_text(encoding='utf-8')),
+        split_labels_sha256=sha256_file(output/name/'split_labels.json'),
+        dataset_sha256=sha256_file(output/name/'dataset/fine_tuning.pkl')) for name in variants}
     write_json(output/'comparison.json',dict(seed=seed,count_seeds=1,split_labels_equal=True,
-        scope='service encoder replaced; node/pod encoders remain released',per_seed=rows,summary=summary))
+        scope='service encoder replaced; node/pod encoders remain released',variants=protocol,per_seed=rows,summary=summary))
+    write_csv(output/'comparison.csv',rows)
     lines=['# Released／自訓練 service encoder 下游比較','',
            '相同 seed 405、500 epochs、Ground Truth 與 split；一個 seed 的結果不代表五 seed 的穩定性。',
            '僅替換 service embedding；node、pod 沿用 released。定位評估為本次新增驗證輸出。','',

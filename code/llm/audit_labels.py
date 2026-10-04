@@ -8,6 +8,7 @@ import pickle
 from llm.build_labeled_dataset import parse_summary, update_labels
 from llm.run_labeling import ROOT, write_json
 from llm.case_locators import locate_cases
+from llm.export_evidence import write_csv
 
 
 def error_kinds(row):
@@ -51,6 +52,10 @@ def audit(run_directory):
     for row in rows:
         row['case_locator']=locators[row['case']]
         row['dataset_update_verified']=actual is not None
+        entity_index=row.get('entity_index')
+        row['entity_type']=next((kind for kind,(start,end) in dataset['meta_data']['ent_type_index'].items()
+            if entity_index is not None and start<=entity_index<end),None)
+        row['gt_source_path']=str(gt_path)
     errors = []
     for row in rows:
         kinds = error_kinds(row)
@@ -67,6 +72,31 @@ def audit(run_directory):
     output = run_directory/'audit'
     write_json(output/'errors.json',dict(parse_errors=parse_errors,entity_errors=errors,all_label_changes=rows))
     counts = Counter(kind for row in errors for kind in row['error_types'])
+    count_rows=[]
+    for kind in sorted(counts):
+        subset=[row for row in errors if kind in row['error_types']]
+        count_rows.append(dict(error_type=kind,entity_occurrence_count=len(subset),distinct_case_count=len({r['case'] for r in subset}),
+            completed_entity_denominator=len(rows),completed_case_denominator=len(completed),
+            entity_rate=len(subset)/len(rows) if rows else None))
+    write_csv(output/'error_type_counts.csv',count_rows)
+    write_csv(output/'error_cases.csv',[dict(case_index=r['case'],entity=r['entity'],entity_index=r.get('entity_index'),
+        entity_type=r['entity_type'],ground_truth_id=r.get('ground_truth'),ground_truth_name=r.get('ground_truth_name'),
+        gt_source_path=str(gt_path),llm_label=r.get('llm_label'),error_types=r['error_types'],
+        response_path=r['response_path'],y_before=r.get('y_before'),y_after=r.get('y_after'),
+        mask_before=r.get('mask_before'),mask_after=r.get('mask_after'),update_verified=r['dataset_update_verified'],
+        **r['case_locator']) for r in errors])
+    taxonomy=dict(label_disagrees_with_ground_truth='Umbrella category; valid applied label differs from public GT',
+        missed_fault='GT fault, accepted Luna No fault',false_positive_fault='GT No fault, accepted Luna fault',
+        wrong_fault_type='Both fault, different accepted type',unknown_fault='Parsed but outside supported fault vocabulary',
+        missing_label='Expected entity has no exact_fault_type',unexpected_entity='Entity key outside selected subgraph',
+        invalid_type='exact_fault_type is not a string',parse_error='No complete JSON object could be decoded',
+        counting='Umbrella and subtypes overlap; do not add them as independent error counts')
+    write_json(output/'error_taxonomy.json',taxonomy)
+    with (output/'update_impact.jsonl').open('w',encoding='utf-8') as f:
+        for row in errors:
+            f.write(json.dumps(dict(row,update_status=row['status'],
+                formal_update_evidence=str(actual_path) if actual is not None else None,
+                analysis_mode='verified_formal_update' if actual is not None else 'simulation'),ensure_ascii=False)+'\n')
     write_json(output/'summary.json',dict(selected_cases=len(samples),completed_cases=len(completed),
         entity_denominator=len(rows),error_entities=len(errors),error_cases=len({e['case'] for e in errors}),
         parse_errors=len(parse_errors),error_type_counts=dict(counts),dataset_written=actual is not None,
