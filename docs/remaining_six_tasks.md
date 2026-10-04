@@ -327,3 +327,23 @@ OAuth與DPAPI是本次新增的登入／憑證保護方式，**與論文方法�
 原始文件指定的保存／回報項目已逐項列在以上六張表，每項有欄位、單位、位置與驗收，沒有用「保留完整證據」代替具體內容。**這是記錄需求已具體化，不是說上述檔案全部已存在。**
 
 此處46條為逐項驗收規格；各表的「待補」是規格制定時的狀態，最新執行狀態以[工作紀錄](E:/Misc/FastCodingWorkspace/AI/SMCI/LasRCA/LasRCA/docs/unattended_progress.md)及實際run artifacts為準。已新增parsed labels／explanation、unique request usage與API等值成本估算、完整y／mask快照及類別分布、逐entity prediction保存、經觀測內容核對的時間locator、各stage counts／schema與結構化失敗、全序列encoding與paired下游工具。仍須以實際完成的實驗輸出逐項驗收，不能只因工具存在而勾選。
+
+### 實際輸出位置更正（2026-10-04 16:45；優先於上表原規劃檔名）
+
+所有位置以下均相對`runs/lasrca`；L=`luna_20261004`、R=`raw_20261004`／`raw_full_20261004`、T=`ts2vec_20261004`。JSON與JSONL副檔名按實際輸出，不為遷就原規劃重複製作。
+
+| 保存要求 | 實際位置與狀態 |
+|---|---|
+| parsed labels、explanation、validation errors | `L/labels/parsed_labels.json/.csv`、`explanations.json`、`validation_errors.json`；已有部分案例快照，全量後重匯出 |
+| stage/request、usage／cost、完成率與歷史失敗 | `L/usage/request_associations.csv`、`request_usage.csv`、`summary.json`、`cost.json`；`L/labeling_report.json/.md`；`L/errors/execution_errors.json`彙整、`execution_attempts.jsonl`逐次記錄（新增功能前的歷史缺時間／HTTP不虛填）；全量待完成 |
+| 完整更新前後、labels流入／忽略統計 | `L/dataset/labels_before.npz`、`labels_after.npz`及兩份schema；`label_changes.json`、`input_signature.json`、`update_statistics.json`、`fault_type_distribution.json/.csv`；含newly_labeled、changed_to、ignored_at_previous_label，正式100cases後產生 |
+| 各seed訓練／checkpoint | `baseline_no_std`、`luna_k1_no_std`的`sweep_status.json`列實際timestamped run；checkpoint在各run `checkpoints/model_seed_<s>_k_0.pkl`（k0）／`checkpoints/model_seed_<s>_k_1_Luna.pkl`（k1），不使用規劃的`models`路徑；k0完整、k1待06完成 |
+| 逐entity probability／GT與localization ranking | 各run `predictions/seed_<s>_test/{predictions.npz,entity_predictions.csv,manifest.json}`，以實際manifest陣列欄位為準；k0另在`baseline_no_std/prediction_verification`保存重評估完整結果，全部12指標一致 |
+| 成對五seed、摘要與論文方向 | C=`luna_k0_k1_comparison`；`comparison.json/.md`、`per_seed_comparison.csv`、`summary_comparison.csv`、`pairing_manifest.json`、`paper_comparison.json/.csv/.md`；工具完成，等待k1 |
+| error案例、GT locator、taxonomy／counts、更新影響 | `L/audit/errors.json`、`error_cases.csv`、`case_details.md`、`error_taxonomy.json`、`error_type_counts.csv`、`update_impact.jsonl`、`summary.json`；部分分析已有，新增CSV工具完成；正式dataset產生後再匯出並核對，simulation不算正式影響 |
+| raw各stage數量／schema／歷史／最終manifest | `R/stage_counts.csv/.json`、`stage_input_output_counts.csv`、`stage_schemas.json`、`stage_runs.jsonl`、`failures.jsonl`、`evidence_failures.json`、`final_manifest.json`；sample已完成713artifacts、0inspection failures；全量仍跑中 |
+| raw shapes／完整覆蓋／數值／GT與edges | `R/comparison/shapes.csv`、`feature_coverage.json/.csv`、`feature_summary.csv`、`feature_samples.csv`、`metadata_topology_alignment.json`、`summary.json`、`labels.csv/.json`、`topology.json`、`structural_summary.json`；sample已產生，full結構已核對，fullfeatures待完成 |
+| TS2Vec inputs／完整defaults／loss／timing | `T/input_manifest.json`保存effective_ts2vec_hyperparameters、optimizer／architecture defaults來源與150序列feature order，而非原規劃另名training_configuration.json；`loss.csv`、`loss_curve.png/.pdf`、`timing.json`、`model.pkl`；已完成；未獨立量測的歷史耗時標null |
+| 全embeddings／下游成對 | `ts2vec_downstream/service_replaced.pkl`、`embedding_comparison.csv`、`encoding_manifest.json`；下游在`encoder_pair_20261004/{released,self_service}`，結果`comparison.json/.csv/.md`；150序列及兩组seed405／500epochs已完成，含classification與localization；node／pod encoder沿用released |
+
+以上保存工具、hash、快取、恢復、OAuth與追加定位評估均為本次執行支援／重現驗證，與論文演算法無關。Luna、額外clipping、raw數值修正及只替換service encoder則為實驗差異，影響與限制另外明列。

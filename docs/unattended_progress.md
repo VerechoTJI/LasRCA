@@ -1,6 +1,29 @@
 # LasRCA 工作紀錄（2026-10-04）
 
-## 最新執行快照（15:48；以下舊紀錄保留為歷史）
+## 最新恢復檢查（16:45；以下15:48及更早紀錄保留為歷史）
+
+Quota重設後已實際恢復，而非僅檢查可恢復性。當時本機舊processes與sessions均已消失，沒有可用exit code，不能斷言全部由quota中止。
+
+| 任務 | 本次核實結果 | 下一步／限制 |
+|---|---|---|
+| 06 | Luna OAuth check通過；case44第二階段從成功request快取恢復；目前36／100 cases四階段完成，runner仍在執行 | 保留成功回答，繼續剩餘案例；尚不能當作全量標註完成 |
+| 07 | 尚未開始正式100cases的dataset更新及k1五seed；controller等待06 | 全量後自動更新與重訓，不使用partial dataset冒充正式結果 |
+| 08 | k0 seeds405～409各500epochs全部完成；五個checkpoint保留，重評估12指標均與原訓練一致 | k1完成後核對paired inputs並輸出差值／論文方向；k0不重訓 |
+| 09 | 已有部分完成案例的GT定位、分類與10個不同錯誤案例詳細因果核對 | 等100cases及正式dataset再核對實際更新影響，當前為simulation |
+| 10 | 抽樣十個stage全部exit0；713個artifact counts/schema掃描完成、0個inspection failures；1428時間窗label及2拓樸0差異。final dataset與released特徵／shape比較已產生。全量保留前三stage，從Metric DAO恢復且仍在執行 | 全量Metric完成後接Trace、Log、組裝和完整證據；抽樣Log缺9欄原因需全量fit核對 |
+| 11 | 600epochs checkpoint保留；150service序列全部重新編碼成功（3225.64秒），兩組下游seed405各500epochs及比較均完成 | 本輪單seed、service encoder部分替換驗證完成，不能宣稱三類encoder均自訓或五seed穩定性 |
+
+11結果：service AC@1為0.340909→0.352273（+1.14百分點）、AC@5為0.681818→0.727273（+4.55百分點）；node／pod AC@1分別下降2.99／1.16百分點。service Macro F1為0.016335→0.016073，並非全面提升。僅替換service embedding仍可經圖模型及重新訓練影響其他entity預測；兩組split／labels相同，但僅一seed，不能推論穩定性或論文整體效能。
+
+抽樣pod為1440×38，released為1440×47：本次抽樣fit沒有選出Log features，released有9個。兩日期的抽樣node／service／pod timestamps全部1440點對齊；無Log共同欄位的數值比較明列「no_shared_features」，不當作一致。可能與抽樣fit範圍／Log pattern threshold相關，待全量fit核對，不能先判定作者資料缺失。
+
+本次Log停止原因：`calculate_word_tf_idf()`對前一步Log DAO已建立的`analysis/log`再次不帶exist_ok建立目錄，引發FileExistsError；並非只在重跑時發生。修正為exist_ok=True，不改TF-IDF或特徵選擇公式。失敗log／status另存`raw_20261004/log_generator_failure_20261004_1630`（目錄名非精確失敗時間，實際時間以pipeline_status／stage_runs為準），完成Log DAO不重跑。此為與論文演算法無關的執行修正。
+
+證據：`round_followup_20261004/status.json`的encoder leg已completed；`encoder_pair_20261004/comparison.json/.csv/.md`含完整兩組protocol、embedding／dataset／checkpoint hash及36指標；`ts2vec_downstream/encoding_manifest.json`含150序列coverage與encoding設定；`raw_20261004/comparison`有shapes、feature_coverage、feature_summary、feature_samples與metadata核對。執行中的controller會等待其餘前置結果後接續，不將waiting_or_running當作完成。
+
+本次完成並獨立提交：beac4de（具體label flow與CSV證據）、365fdd7（Log目錄修正及回歸）、81f76f4（缺少／未共同特徵與timestamps覆蓋）。相關10＋3項本機測試通過。原始status SHA256仍為`9F6251D901534C47E8CC2059DB8B1E27BFAC8F9CD98775F88AF775AA73E0B0F0`，未修改。
+
+## 15:48執行快照（歷史）
 
 使用者授權繼續跑完六項的一輪實驗後，再統一驗收比較。網路與DPAPI可用；原始進度文件仍唯讀。每個獨立程式任務已測試並commit，執行中不把工具完成稱為實驗完成。
 
