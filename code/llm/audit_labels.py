@@ -70,6 +70,7 @@ def audit(run_directory):
     write_json(output/'summary.json',dict(selected_cases=len(samples),completed_cases=len(completed),
         entity_denominator=len(rows),error_entities=len(errors),error_cases=len({e['case'] for e in errors}),
         parse_errors=len(parse_errors),error_type_counts=dict(counts),dataset_written=actual is not None,
+        error_count_definition='label_disagrees_with_ground_truth is an umbrella count; missed/false_positive/wrong_type are its exclusive subtypes, not additional errors',
         update_evidence_path=str(actual_path) if actual is not None else None))
     lines = ['# Luna 補標錯誤分析（離線）','',
         f'公開選取 {len(samples)} 案例，目前完整完成 {len(completed)} 案例。以下僅分析完成部分，不能推估全部100案例錯誤率。',

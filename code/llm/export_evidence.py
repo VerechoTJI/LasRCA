@@ -131,11 +131,16 @@ def export(run):
     write_json(run/'usage/summary.json',summarize_usage(list(requests.values())))
     write_json(run/'usage/cost.json',api_equivalent_cost(list(requests.values())))
     execution_errors = [dict(case_index=int(case),**state,observed_time=None,
+        record_kind='latest_failed_case_status_not_additional_attempt',
         historical_fields_limitation='Older status has no attempt timestamp or HTTP status')
         for case,state in states.items() if state['status']=='failed']
+    history=[]
     attempts = run/'errors/execution_attempts.jsonl'
     if attempts.exists():
-        execution_errors.extend(json.loads(line) for line in attempts.read_text(encoding='utf-8').splitlines() if line)
+        history.extend(json.loads(line) for line in attempts.read_text(encoding='utf-8').splitlines() if line)
+    historical=run/'errors/historical_inspection_failures.json'
+    if historical.exists():history.extend(json.loads(historical.read_text(encoding='utf-8')))
+    execution_errors.extend(history)
     write_json(run/'errors/execution_errors.json',execution_errors)
     n=len(completed_samples)
     expected=sum(len(s['ent_names']) for s in samples)
@@ -146,12 +151,16 @@ def export(run):
         parseable_cases=len(summaries),parse_errors=len(parse_errors),total_expected_entity_occurrences=expected,
         completed_entity_occurrences=sum(len(s['ent_names']) for s in completed_samples),valid_entity_labels=valid,
         valid_label_rate=valid/expected,entity_validation_counts=dict(Counter(r['status'] for r in labels)),
-        dataset_updated=False,explanation_scope='Case-level original stage-3 text, not independently extracted entity reasons',
+        recorded_failed_attempts=len(history),execution_failure_counts=dict(Counter(r.get('error_category','unknown') for r in history)),
+        historical_failure_coverage='Old runner has incomplete attempt history; recovered failures are reported separately from currently failed cases',
+        dataset_written_by_export=False,formal_dataset_exists=(run/'dataset/k1_luna.pkl').exists(),
+        explanation_scope='Case-level original stage-3 text, not independently extracted entity reasons',
         partial=n!=len(samples),files_are_current_snapshot=True)
     write_json(run/'labeling_report.json',report)
     (run/'labeling_report.md').write_text('# Luna 標註紀錄（非論文演算法）\n\n'+
         f'完成 {n}/{len(samples)} cases；可解析 {len(summaries)} cases；有效標籤 {valid}/{expected} entity occurrences。\n\n'+
-        'parsed_labels、explanations、validation_errors、request usage／關聯與原始四階段文字另存。理由保留第三階段case層級原文，不假造entity理由。未更新dataset。cost.json提供公開Standard API等值成本估算，OAuth帳號實際計費仍不可得，不把估算當實付或填零。\n',encoding='utf-8')
+        f'目前失敗案例 {failed_cases}；已保存歷史失敗紀錄 {len(history)}。舊runner歷史覆蓋不完整，兩者不能當同一分母。\n\n'+
+        'parsed_labels、explanations、validation_errors、request usage／關聯與原始四階段文字另存。理由保留第三階段case層級原文，不假造entity理由。本匯出不修改dataset；正式補標檔是否存在另記formal_dataset_exists。cost.json提供公開Standard API等值成本估算，OAuth帳號實際計費仍不可得，不把估算當實付或填零。\n',encoding='utf-8')
     print(json.dumps(report))
 
 
