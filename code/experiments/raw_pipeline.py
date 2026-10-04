@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+from datetime import datetime,timezone
+import uuid
 
 from experiments.artifacts import collect_artifacts
 
@@ -35,13 +37,24 @@ def run(config, output, stages):
         if statuses.get(module,{}).get('exit_code') == 0:
             continue
         start = time.monotonic()
+        started_at=datetime.now(timezone.utc).isoformat()
+        attempt_id=uuid.uuid4().hex
         command = [sys.executable,'-m','data_filter.CCF_AIOps_challenge_2022.'+module]
         with (output/(module.replace('.','_')+'.log')).open('w',encoding='utf-8') as log:
             result = subprocess.run(command,env=environment,stdout=log,stderr=subprocess.STDOUT)
-        statuses[module] = dict(command=command,exit_code=result.returncode,duration_seconds=time.monotonic()-start)
+        statuses[module] = dict(command=command,exit_code=result.returncode,duration_seconds=time.monotonic()-start,
+            attempt_id=attempt_id,started_at=started_at,ended_at=datetime.now(timezone.utc).isoformat(),
+            module=module,config_path=str(config),log_path=str(output/(module.replace('.','_')+'.log')))
+        with (output/'stage_runs.jsonl').open('a',encoding='utf-8') as history:
+            history.write(json.dumps(statuses[module])+'\n')
         state.write_text(json.dumps(statuses,indent=2),encoding='utf-8')
         print(f'{module}: exit {result.returncode}',flush=True)
         if result.returncode:
+            with (output/'failures.jsonl').open('a',encoding='utf-8') as failures:
+                failures.write(json.dumps(dict(module=module,attempt_id=attempt_id,
+                    scope=settings['file'],exit_code=result.returncode,log_path=statuses[module]['log_path'],
+                    message='Subprocess failed; exact traceback and input locator retained in stage log',
+                    entity_or_case=None,ended_at=statuses[module]['ended_at']))+'\n')
             raise RuntimeError(f'Preprocessing failed at {module}; inspect its log')
     (output/'artifact_manifest.json').write_text(json.dumps(collect_artifacts(storage),indent=2),encoding='utf-8')
 

@@ -77,6 +77,17 @@ def producing_stage(path):
     return 'unknown'
 
 
+def consuming_stages(path,role):
+    parts=path.parts
+    if role.startswith('ground_truth'):return ['service.time_interval_label_generator']
+    if role.startswith('input'):
+        return [stage for category,stage in [('metric','dao.metric_dao'),('trace','dao.trace_dao'),('log','dao.log_dao')] if category in parts]
+    for category,stage in [('raw_metric','service.metric_generator'),('raw_trace','service.trace_generator'),('raw_log','service.log_generator'),('resource_entity','service.ent_edge_index_generator')]:
+        if category in parts:return [stage]
+    if 'dataset' in parts and 'final' not in parts:return ['service.dataset_generator']
+    return []
+
+
 def collect(run,include_inputs=False):
     run=Path(run).resolve()
     config=json.loads((run/'config.json').read_text(encoding='utf-8'))
@@ -93,6 +104,7 @@ def collect(run,include_inputs=False):
             seen.add(path.resolve())
             record=dict(role=role,path=str(path.resolve()),relative_path=str(path.relative_to(root)),
                 producing_stage=producing_stage(path.relative_to(root)) if role=='output' else 'source',bytes=path.stat().st_size)
+            record['consuming_stages']=consuming_stages(path.relative_to(root),role)
             try:
                 if path.suffix.lower()=='.csv':
                     schema=inspect_csv(path)
@@ -118,6 +130,15 @@ def collect(run,include_inputs=False):
     write_csv(run/'stage_counts.csv',records)
     write_json(run/'stage_counts.json',records)
     write_json(run/'stage_schemas.json',schemas)
+    io_rows=[]
+    for record in records:
+        if record['role']=='output':
+            io_rows.append(dict(module=record['producing_stage'],direction='output',path=record['path'],
+                count=record.get('count'),unit=record.get('unit'),schema_ref=record.get('schema_ref'),status=record['status']))
+        for module in record['consuming_stages']:
+            io_rows.append(dict(module=module,direction='input',path=record['path'],count=record.get('count'),
+                unit=record.get('unit'),schema_ref=record.get('schema_ref'),status=record['status']))
+    write_csv(run/'stage_input_output_counts.csv',io_rows)
     write_json(run/'evidence_failures.json',errors)
     write_json(run/'final_manifest.json',dict(scope=config['file'],includes_inputs=include_inputs,
         artifacts=records,inspection_errors=errors,duration_seconds=time.monotonic()-started,
