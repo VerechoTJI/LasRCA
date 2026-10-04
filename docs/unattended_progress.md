@@ -1,5 +1,17 @@
 # LasRCA 工作紀錄（2026-10-04）
 
+## 21:18監控：100cases完成，資料更新攔截已修復並恢復重訓
+
+Luna100cases四階段於20:52前全部完成，100摘要可解析；653個entity occurrences中640個類別合法、13個unknown_fault。正式更新只採640個合法labels，13個保留原y／mask，不以No fault或GT替代。原始回答、完整parsed evidence、usage及歷史錯誤保留。
+
+20:52正式builder失敗：輸入保護發現train_valid/y改變，尚未寫k1_luna.pkl。不是檢查誤判，也不是quota再次耗盡。公開prepared cache的train_valid及unlabeled共用同一批label row物件；整個dataset deepcopy保留alias，因此更新unlabeled連帶改到32個train_valid標籤row。只deepcopy本身並無差異，真正更新才改變protected_labels hash。診斷保存`luna_20261004/errors/signature_diagnosis.json`，失敗stdout/stderr/manifest保留於原controller execution，不覆寫。
+
+修正：更新前獨立複製unlabeled y／y_mask，逐list row解除跨split及同split alias；特徵、切分、GT、其他split均保持不變。共享row回歸測試與dataset／pairing相關8tests通過，commit c3949b3。這是本次dataset更新工具的正確性修正，與論文演算法無關，不能稱作者刻意設計或根據GT修正Luna輸出。
+
+正式dataset已成功產生，640labels均mask0→1。source SHA256 `c47c557e732f0d1c33e765a1ea97a5146f5f6c918df876d4bff2ec80e1975ab5`；target `6e42fe9cfd49a5ad5173449bdb5001dcfd83c4743554a1d666efa86ca89cb3d8`。完整before/after y／mask、分布、label_changes與input_signature已保存；features／split／protected labels三項hash全相同，checks_passed=true。
+
+僅重啟失敗的classifiers leg：新controller `round_followup_recovery_20261004`，21:16:58開始k1 seed405；原`round_followup_20261004`仍跑全量Log，encoder已完成，不重複啟動。原controller classifiers failed保留為歷史，監控讀recovery的最新classifiers狀態。每小時提醒已更新此規則，以免將已處理的失敗重複通知。尚未宣稱k1五seed／整輪完成。
+
 ## 最新恢復檢查（16:45；以下15:48及更早紀錄保留為歷史）
 
 Quota重設後已實際恢復，而非僅檢查可恢復性。當時本機舊processes與sessions均已消失，沒有可用exit code，不能斷言全部由quota中止。
