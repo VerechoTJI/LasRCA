@@ -10,6 +10,16 @@ from llm.run_labeling import ROOT, write_json
 from llm.case_locators import locate_cases
 
 
+def error_kinds(row):
+    if row['status']!='applied':
+        return [row['status']]
+    actual,predicted=row['ground_truth'],row['y_after']
+    if actual==predicted:
+        return []
+    subtype='missed_fault' if predicted==0 else 'false_positive_fault' if actual==0 else 'wrong_fault_type'
+    return ['label_disagrees_with_ground_truth',subtype]
+
+
 def audit(run_directory):
     run_directory = Path(run_directory)
     base = ROOT/'temp_data/A'
@@ -43,11 +53,7 @@ def audit(run_directory):
         row['dataset_update_verified']=actual is not None
     errors = []
     for row in rows:
-        kinds = []
-        if row['status']!='applied':
-            kinds.append(row['status'])
-        elif row['y_after'] != row['ground_truth']:
-            kinds.append('label_disagrees_with_ground_truth')
+        kinds = error_kinds(row)
         if kinds:
             name = row['entity']
             gt = row.get('ground_truth')
@@ -71,11 +77,37 @@ def audit(run_directory):
         '多個錯誤 entity 可來自同一案例；不足10個不同錯誤案例時全部列出，不製造案例。',
         ('已逐項核對正式 Dataset 更新紀錄；Ground Truth 僅用於分析。' if actual is not None else '本分析模擬 Dataset 更新，未寫入正式 Dataset。Ground Truth 僅用於分析。'),'',
         '| Case | Entity | Ground Truth | Luna label | 錯誤 | y/mask 更新 |', '|---|---|---|---|---|---|']
-    for row in errors[:20]:
+    selected_cases=list(dict.fromkeys(row['case'] for row in errors))[:20]
+    for row in errors:
+        if row['case'] not in selected_cases:continue
         lines.append(f"| {row['case']} | {row['entity']} | {row['ground_truth_name']} | {row.get('llm_label')} | {', '.join(row['error_types'])} | {row.get('y_before')}/{row.get('mask_before')} → {row.get('y_after')}/{row.get('mask_after')} |")
     lines += ['','原始 response、stage-3 explanation 路徑及全部逐entity差異保存在同目錄 errors.json。',
         'LLM 與 Ground Truth 不一致是可觀察結果，尚不能僅由最終回答判定第一階段／整合階段／摘要階段哪一步造成；需對照原始階段回答。']
     (output/'report.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+    details=['# Luna 錯誤案例與資料更新影響','',
+        f'本次列出{len(selected_cases)}個不同案例，最多20例；少於10例時保留實際數量。',
+        '「漏標／誤標」均以公開Ground Truth為判定基準，不能只據此推定實際物理故障影響。分類器沒有參與這份差異判定。',
+        '下列第三階段文字是案例層級原回答；因果判斷以可見階段結果為界，不能把理由原文當成已證實的故障因果。','']
+    for case in selected_cases:
+        subset=[row for row in errors if row['case']==case]
+        locator=locators[case]
+        stage_path=run_directory/f'responses/stage-3/{case}.txt'
+        text=stage_path.read_text(encoding='utf-8') if stage_path.exists() else ''
+        details += [f'## Case {case}', '',
+            f"來源：{locator['date']}／{locator['cloud_bed']}，時間窗{locator['start_timestamp']}～{locator['end_timestamp']}；公開GT索引{locator['source_case_index']}，注入entity {locator['injected_entity']}。",
+            '',f'[原摘要]({(run_directory/f"responses/summarization/{case}.txt").resolve()})；[第三階段原回答]({stage_path.resolve()})。','']
+        for row in subset:
+            if row['status']!='applied':
+                effect='摘要未通過已知類別／entity驗證，因此保留原y與mask；不把無效名稱換成No fault。'
+            elif row['y_after']==0:
+                effect='摘要提供可解析的No fault，原程式會將y改為0、mask改為1；因此此entity會作為新增的正常監督訊號進入訓練。'
+            else:
+                effect='摘要提供可解析故障類別，原程式會以此類別更新y並令mask=1；因此GT不一致標籤會成為新增監督訊號。'
+            verification='已逐項核對正式更新。' if actual is not None else '目前為更新模擬，正式dataset尚未產生。'
+            details += [f"- {row['entity']}：GT={row['ground_truth_name']}；Luna={row.get('llm_label')}；類型={', '.join(row['error_types'])}。{effect}{verification}"]
+        details += ['','可觀察的流程界線：第三階段負責依子圖關係整合判斷，摘要階段將回答轉為標籤。下方原文可用來判定錯誤是否已出現在第三階段；若無逐階段對照，不進一步歸因到第一／第二階段。','',
+                    '### 第三階段原回答（完整案例層級證據）','',text,'']
+    (output/'case_details.md').write_text('\n'.join(details)+'\n',encoding='utf-8')
     print(json.dumps(dict(completed_cases=len(completed),entity_denominator=len(rows),error_entities=len(errors))))
 
 
