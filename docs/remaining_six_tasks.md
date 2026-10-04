@@ -35,7 +35,7 @@
 | P-01 固定輸入 | 為避免續跑混入不同選樣、dataset或prompt，記錄實際路徑、SHA-256、source commit及設定 | run manifest；續跑時檢查 model／selection，prompt hash關聯請求 |
 | P-02 固定正式比較條件 | k=0與k=1使用相同原始特徵、train／valid／test索引、GT、seed與前處理；只有新增LLM labels的訓練資訊不同 | 實際prepared dataset、split、preprocessing及checkpoint的可核對來源 |
 | P-03 分開訓練與評估資料 | GT用於分析與評估；不得被新增到LLM prompts或用來自動修正LLM labels | prompt來源檢查；label update差異；test與valid未變 |
-| P-04 保存可恢復結果 | 成功請求續用，失敗保留狀態；不把中斷回答寫成標籤 | request cache、stage logs、status；恢復不重付已成功請求 |
+| P-04 保存可恢復結果（與論文方法無關） | 本次新增的實驗執行輔助功能：成功請求續用，失敗保留狀態；不把中斷回答寫成標籤 | request cache、stage logs、status；恢復不重付已成功請求；不列為論文方法或重現成果 |
 | P-05 區分程式與實驗 | 依「未開始／工具完成／部分執行／實驗完成」記錄；只有產出齊全才驗收 | 本文件的任務狀態與實際run目錄一致 |
 
 依賴順序：06→07→08；09從06同步收集、用07更新結果補齊影響分析。10可獨立進行；11使用released processed dataset時不必等待10，使用raw重建資料時才依賴10。本次至少完成一組encoder採前者。
