@@ -48,7 +48,7 @@ def source_pairing(baseline,k1,dataset):
     return dict(input_signatures=signatures,seeds=rows,all_pairing_checks_passed=True)
 
 
-def run(output):
+def run(output,legs=None):
     output=Path(output).resolve()
     output.mkdir(parents=True,exist_ok=True)
     runs=ROOT/'runs/lasrca'
@@ -106,9 +106,13 @@ def run(output):
         target=runs/'encoder_pair_20261004'
         invoke('experiments.encoder_comparison',['--output',target,'--own-embedding',own],'train')
         return dict(comparison=str(target),self_encoder_entity_type='service',downstream_seed=405)
-    state={key:dict(status='waiting_or_running') for key in ('classifiers','preprocessing','encoder')}
+    actions={'classifiers':classifiers,'preprocessing':preprocessing,'encoder':encoder}
+    selected=list(actions) if legs is None else list(legs)
+    if not selected or len(set(selected))!=len(selected) or any(key not in actions for key in selected):
+        raise ValueError('Choose distinct known follow-up legs')
+    state={key:dict(status='waiting_or_running') for key in selected}
     with ThreadPoolExecutor(max_workers=3) as pool:
-        futures={key:pool.submit(action) for key,action in [('classifiers',classifiers),('preprocessing',preprocessing),('encoder',encoder)]}
+        futures={key:pool.submit(actions[key]) for key in selected}
         while futures:
             for key,future in list(futures.items()):
                 if not future.done():continue
@@ -126,5 +130,6 @@ def run(output):
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('--output',required=True)
+    parser.add_argument('--legs',nargs='+',choices=['classifiers','preprocessing','encoder'])
     args=parser.parse_args()
-    run(args.output)
+    run(args.output,args.legs)

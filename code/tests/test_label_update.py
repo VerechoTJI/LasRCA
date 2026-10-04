@@ -9,6 +9,19 @@ from llm.build_labeled_dataset import update_labels, parse_summary
 
 
 class UpdateTests(unittest.TestCase):
+    def test_shared_released_label_rows_do_not_modify_protected_splits(self):
+        shared=np.array([0])
+        dataset={'meta_data':{'ent_names':['node-1'],'en_fault_type_list':['Node CPU Fault']},
+            'data':{'train_valid':{'y':[shared]},'test':{'y':[shared]},
+                    'unlabeled':{'y':[shared,shared],'y_mask':[np.array([0]),np.array([0])],'y_true':[shared,shared]}}}
+        updated,_=update_labels(dataset,[{'sample_index':0,'ent_names':['node-1']}],
+            {0:{'node-1':{'exact_fault_type':'Node CPU Fault'}}})
+        self.assertEqual(updated['data']['unlabeled']['y'][0][0],1)
+        for split in ('train_valid','test'):
+            self.assertEqual(updated['data'][split]['y'][0][0],0)
+        self.assertEqual(updated['data']['unlabeled']['y'][1][0],0)
+        self.assertEqual(updated['data']['unlabeled']['y_true'][0][0],0)
+        self.assertEqual(shared[0],0)
     def test_explicit_dataset_bypasses_released_cache(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp)/'prepared.pkl'

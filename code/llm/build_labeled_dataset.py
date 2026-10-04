@@ -24,6 +24,14 @@ def parse_summary(text):
 
 def update_labels(dataset, samples, summaries):
     result = copy.deepcopy(dataset)
+    # The released cache shares label row objects across splits. A whole-dataset
+    # deepcopy preserves those aliases; detach only the two writable fields.
+    for field in ('y', 'y_mask'):
+        values = result['data']['unlabeled'][field]
+        result['data']['unlabeled'][field] = (
+            [copy.deepcopy(row) for row in values] if isinstance(values, list)
+            else copy.deepcopy(values)
+        )
     rows = []
     names = dataset['meta_data']['ent_names']
     faults = dataset['meta_data']['en_fault_type_list']
