@@ -1,5 +1,11 @@
 # LasRCA 工作紀錄（2026-10-04）
 
+## 2026-10-05追加公開資料encoder覆核（第一輪完成狀態不變）
+
+已清楚區分作者提供的embedding_600.pkl與本次自行訓練的TS2Vec model.pkl：下載model.zip沒有pretrain權重，只有下游模型。上一輪及追加訓練使用相同作者released processed資料，直接與temp_data.zip entry核對SHA256相同，未使用本次raw重建資料。詳見[來源說明與追加對照](encoder_public_provenance.md)。
+
+07:53追加controller開始：`encoder_public_recheck_20261005`，encoder seed406／600epochs，保持作者service參數；下游仍seed405／500epochs，避免混淆encoder與下游seed影響。新run隔離保存，訓練後自動編碼150序列並比較；每小時監控已切換至此run。尚未完成，不更新原六項為未完成，也不提前推論自訓品質。原始status仍唯讀。
+
 ## 最終一輪核對（23:14）
 
 六項均已實際完成一輪；最後全量raw證據於22:37完成。最新classifiers在recovery controller為completed，原controller的preprocessing／encoder為completed；已處理的舊classifiers failed保留為歷史。100cases、640合法新增labels、五seed各500epochs、全部checkpoint hash／paired input及prediction重算已驗證。全量raw十stage exit0，5187artifacts、0inspection failures，4714windows／15topologies皆0差異。150service encodings與單seed兩組下游完成。

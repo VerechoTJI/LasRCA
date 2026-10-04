@@ -21,3 +21,9 @@ service實際為8個Metric、沒有Trace／Log輸入。`pretrain.sh`的service�
 若要驗證「raw重建資料是否導致encoder變差」，必須另外在同encoder seed／下游seed／feature順序下配對released與重建資料；本次公開資料重訓本身無法證明該因果關係。先釐清既有結果已排除新raw資料的直接使用，不擅自將raw差異歸為此結果的原因。
 
 以上來源核對、hash、隔離輸出、恢復及執行紀錄與論文演算法無關；公開embedding對照、自訓service部分替換及明確seed屬本次實驗設定，限制需隨結果報告。
+
+## 2026-10-05 07:53實際啟動紀錄
+
+資料entry從temp_data.zip直接串流計算SHA256，與實際訓練檔及上一輪seed405輸入均為`c594cdf9ba66c5ff493985a98ff9fdc258e6a3e45fc52d5b69051e8b54b0795b`；input_matches_download及input_matches_previous_trial皆true。model.zip完整非MACOSX檔名清單已保存，ts2vec_weight_entries為空。追加seed406訓練已進入600epochs流程，尚未完成，不把啟動當結果。controller之後自動接150序列encoding、兩組固定下游seed405比較；原產物不覆寫。
+
+來源說明commit3e7a9a8；控制器與來源檢查commit870970e，6項相關測試通過。每小時提醒已改為監控本run，完成或失敗才通知，完成後停止。
