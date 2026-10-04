@@ -9,6 +9,7 @@ import runpy
 import shutil
 import sys
 import time
+from datetime import datetime, timezone
 from types import ModuleType
 from unittest.mock import patch
 
@@ -89,6 +90,15 @@ def run(output, limit=None):
             print(f'case {index}: four stages completed',flush=True)
         except Exception as error:
             statuses[index] = dict(status='failed',stage=stage,error_type=type(error).__name__,message=str(error))
+            # Reproduction-only attempt history; never replaces a successful answer.
+            error_path = output/'errors/execution_attempts.jsonl'
+            error_path.parent.mkdir(parents=True,exist_ok=True)
+            category = 'missing_prompt_or_path' if isinstance(error,FileNotFoundError) else 'oauth_or_api' if type(error).__name__=='OAuthError' else 'other'
+            attempt = dict(case_index=int(index),stage=stage,error_category=category,
+                error_type=type(error).__name__,message=str(error),http_status=getattr(error,'status_code',None),
+                observed_at=datetime.now(timezone.utc).isoformat(),status='failed')
+            with error_path.open('a',encoding='utf-8') as f:
+                f.write(json.dumps(attempt,ensure_ascii=False)+'\n')
             print(f'case {index}: failed at {stage} ({type(error).__name__})',flush=True)
             # Authentication/quota/network failures can affect every case; stop to avoid request storms.
             if type(error).__name__ == 'OAuthError':
