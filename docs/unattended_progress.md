@@ -1,5 +1,11 @@
 # LasRCA 工作紀錄（2026-10-04）
 
+## 最終一輪核對（23:14）
+
+六項均已實際完成一輪；最後全量raw證據於22:37完成。最新classifiers在recovery controller為completed，原controller的preprocessing／encoder為completed；已處理的舊classifiers failed保留為歷史。100cases、640合法新增labels、五seed各500epochs、全部checkpoint hash／paired input及prediction重算已驗證。全量raw十stage exit0，5187artifacts、0inspection failures，4714windows／15topologies皆0差異。150service encodings與單seed兩組下游完成。
+
+結果及验收限制完整寫於[第一輪結果](one_round_results_20261004.md)。三類F1提高、Precision下降，node定位下降；raw抽樣234feature rows中pod六列Istio數值不同、Log欄位順序不同，不聲稱全面數值一致。20個錯誤案例詳解已連正式更新，86個entity錯誤包含73個合法錯標與13個unknown。尚待人工验收及六個Istio差異原因核對，不再有需等待的本輪背景實驗。原始status hash保持不變，完成提醒在產物核對後停止。
+
 ## 21:18監控：100cases完成，資料更新攔截已修復並恢復重訓
 
 Luna100cases四階段於20:52前全部完成，100摘要可解析；653個entity occurrences中640個類別合法、13個unknown_fault。正式更新只採640個合法labels，13個保留原y／mask，不以No fault或GT替代。原始回答、完整parsed evidence、usage及歷史錯誤保留。
