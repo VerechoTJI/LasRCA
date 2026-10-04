@@ -21,6 +21,8 @@ Quota恢復檢查：舊session／local processes不再存在，未完成階段�
 
 ## 歷史紀錄
 
+16:10補充：五seed checkpoint重評估已完成，全部12指標與原訓練紀錄一致；逐entity predictions／GT及ranking保存於`baseline_no_std/prediction_verification`。TS2Vec `input_manifest.json`記實際8個Metric、全部150序列、完整source defaults與fit/test界線；`loss_curve.png`／`.pdf`已輸出並檢查。錯誤分析已有10個不同案例的完整stage3原文與更新影響，惟仍為25cases快照、未更新正式dataset。已啟動`round_followup_20261004`，等待前置成果後依序完成k1／比較、full raw後段與證據、自訓encoder下游；此controller屬與論文無關的執行支援。原始碼／PDF原表已核對；分類方向不能把Precision下降誤說成提升。
+
 新進度：補上離線 `llm.export_evidence`，14／100 cases快照：653個預期entity occurrences、78個完成且合法標籤、0摘要解析失敗。保存獨立parsed labels、case層級stage3理由原文、格式錯誤、request/stage關聯、unique request token用量及成本不可得說明（不填0）。新增2項usage測試通過。runner新增失敗attempt append記錄；已執行中的runner不受修改影響，新入口重啟後才使用新增紀錄。這些是本次重現證據工具，非論文演算法。
 
 ## 權限請求失敗
