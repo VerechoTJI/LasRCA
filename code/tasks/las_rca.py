@@ -529,15 +529,6 @@ if __name__ == "__main__":
     parser.add_argument("--lr", default=0.0001, type=float)
     parser.add_argument("--weight_decay", default=0.001, type=float)
     parser.add_argument(
-        "--trace_zero_iqr_fallback",
-        choices=("none", "std"),
-        default="none",
-        help=(
-            "Use the stored standard deviation for sparse trace features that "
-            "the source IQR preprocessor left unscaled."
-        ),
-    )
-    parser.add_argument(
         "--trace_statistics_path",
         default="2022_CCF_AIOps_challenge/analysis/trace/statistic.json",
         help="Trace statistics path, absolute or relative to the temp_data directory.",

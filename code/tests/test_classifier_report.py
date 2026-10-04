@@ -75,7 +75,7 @@ class ClassifierReportTests(unittest.TestCase):
                 "localization": localization,
                 "classification": classification,
                 "trace_preprocessing": {
-                    "zero_iqr_fallback": "std",
+
                     "percentile_clip": "stored-1-99",
                 },
             }
@@ -126,8 +126,6 @@ class ClassifierReportTests(unittest.TestCase):
                         "500",
                         "--track",
                         "local-full-trace-stable",
-                        "--trace_zero_iqr_fallback",
-                        "std",
                         "--trace_percentile_clip",
                         "stored-1-99",
                     ],
@@ -152,7 +150,7 @@ class ClassifierReportTests(unittest.TestCase):
                 "commit": "e528089",
                 "seeds": list(range(405, 410)),
                 "epochs_per_seed": 500,
-                "trace_zero_iqr_fallback": "std",
+
                 "trace_percentile_clip": "stored-1-99",
             },
         )

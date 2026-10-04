@@ -110,8 +110,6 @@ def build_classifier_report(controller_directory):
             raise ValueError(f"checkpoint SHA256 mismatch for seed {seed}")
 
         preprocessing = summary["trace_preprocessing"]
-        if preprocessing.get("zero_iqr_fallback") != "std":
-            raise ValueError(f"unexpected zero-IQR fallback for seed {seed}")
         if preprocessing.get("percentile_clip") != "stored-1-99":
             raise ValueError(f"unexpected percentile clipping for seed {seed}")
         command = manifest.get("command", [])
@@ -121,7 +119,6 @@ def build_classifier_report(controller_directory):
             "--seed": str(seed),
             "--epochs": "500",
             "--track": "local-full-trace-stable",
-            "--trace_zero_iqr_fallback": "std",
             "--trace_percentile_clip": "stored-1-99",
         }
         for option, expected in expected_options.items():
@@ -143,7 +140,7 @@ def build_classifier_report(controller_directory):
                 "track": summary["track"],
                 "requested_epochs": int(summary["requested_epochs"]),
                 "completed_epochs": int(summary["completed_epochs"]),
-                "zero_iqr_fallback": preprocessing["zero_iqr_fallback"],
+                "trace_preprocessing": dict(preprocessing),
                 "percentile_clip": preprocessing["percentile_clip"],
                 "dataset_path": summary["dataset_path"],
                 "dataset_sha256": summary["dataset_sha256"],
@@ -211,7 +208,7 @@ def build_classifier_report(controller_directory):
             "source_runs": source_runs,
             "preprocessing_deviation": {
                 "paper_faithful": False,
-                "zero_iqr_fallback": started["trace_zero_iqr_fallback"],
+                "historical_trace_preprocessing": training_records[0]["trace_preprocessing"],
                 "percentile_clip": started["trace_percentile_clip"],
             },
         },
@@ -283,8 +280,10 @@ Paper datasets A, B, and C map to service, pod, and node respectively.
 
 ## Declared deviation
 
-These are not paper-faithful preprocessing results. The completed runs used a
-zero-IQR standard-deviation fallback and stored 1st/99th percentile clipping.
+These are not paper-faithful preprocessing results. The completed runs used
+the preprocessing recorded in each run, including stored percentile clipping.
+Archived runs retain their original metadata; removing a transform does not
+retroactively change their checkpoints or results.
 """
 
 

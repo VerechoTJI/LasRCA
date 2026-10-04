@@ -142,7 +142,7 @@ class SelectionEvidenceTests(unittest.TestCase):
                 checkpoint_records=[{"seed": 405, "checkpoint_sha256": "abc"}],
                 seed_probabilities=np.full((1, 1, 2, 2), 0.5),
                 mean_probabilities=np.full((1, 2, 2), 0.5),
-                preprocessing={"zero_iqr_fallback": "std"},
+                preprocessing={"percentile_clip": "stored-1-99"},
                 validation={"status": "passed", "checks": {"test": True}},
                 completion={"status": "completed"},
             )

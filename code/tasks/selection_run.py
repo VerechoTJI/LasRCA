@@ -121,7 +121,6 @@ def _model_config(arguments, device):
         "eff_GAT_out_channels": 128,
         "eff_GAT_heads": 2,
         "eff_GAT_dropout": 0.1,
-        "trace_zero_iqr_fallback": "std",
         "trace_statistics_path": (
             "2022_CCF_AIOps_challenge/analysis/trace/statistic.json"
         ),
@@ -351,7 +350,6 @@ def main(argv=None):
         "released_selection_path": str(released_selection_path),
         "released_selection_sha256_before": released_selection_sha256,
         "preprocessing_deviation": {
-            "zero_iqr_fallback": "std",
             "percentile_clip": "stored-1-99",
         },
     }

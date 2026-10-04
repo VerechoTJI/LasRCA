@@ -80,7 +80,6 @@ def _model_config(arguments, device):
         "eff_GAT_out_channels": 128,
         "eff_GAT_heads": 2,
         "eff_GAT_dropout": 0.1,
-        "trace_zero_iqr_fallback": "std",
         "trace_statistics_path": (
             "2022_CCF_AIOps_challenge/analysis/trace/statistic.json"
         ),
@@ -365,8 +364,7 @@ Human-readable schemas and finite-value checks are in `tensor_summary.*`, while
 
 ## Declared preprocessing deviation
 
-The traced model input uses the same zero-IQR standard-deviation fallback and
-stored 1st/99th percentile clipping as the formal training run. It is not a
+The traced model input uses stored 1st/99th percentile clipping. It is not a
 paper-faithful preprocessing path.
 
 Validation status: `{validation['status']}`.
