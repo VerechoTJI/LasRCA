@@ -63,6 +63,7 @@ def inspect_csv(path):
 
 def producing_stage(path):
     parts=path.parts
+    if 'resource_entity' in parts and path.name=='edge_index.pkl':return 'dao.topology_dao'
     mapping={'raw_metric':'dao.metric_dao','raw_trace':'dao.trace_dao','raw_log':'dao.log_dao'}
     for part,stage in mapping.items():
         if part in parts:return stage
@@ -73,18 +74,40 @@ def producing_stage(path):
             'ent_edge_index':'service.ent_edge_index_generator'}.get(child,'unknown')
     if 'analysis' in parts:
         child=parts[parts.index('analysis')+1]
+        if child=='trace' and path.name=='trace_patterns.json':return 'dao.trace_dao'
+        if child=='log':
+            return 'dao.log_dao' if path.name in ('log_patterns.json','log_template_miner.pkl','istio_words.json') else 'service.log_generator'
         return {'metric':'service.metric_generator','trace':'service.trace_generator','log':'dao.log_dao'}.get(child,'unknown')
     return 'unknown'
 
 
 def consuming_stages(path,role):
     parts=path.parts
-    if role.startswith('ground_truth'):return ['service.time_interval_label_generator']
+    if role.startswith('ground_truth'):return ['service.time_interval_label_generator'] if path.suffix=='.csv' else []
     if role.startswith('input'):
+        if path.suffix!='.csv':return []
         return [stage for category,stage in [('metric','dao.metric_dao'),('trace','dao.trace_dao'),('log','dao.log_dao')] if category in parts]
+    if 'raw_metric' in parts:return ['service.metric_generator','service.dataset_generator']
+    if 'raw_trace' in parts:return ['dao.trace_dao','service.trace_generator']
+    if 'resource_entity' in parts:return ['dao.topology_dao','service.ent_edge_index_generator']
+    if 'analysis' in parts:
+        child=parts[parts.index('analysis')+1]
+        if child=='log':
+            if path.name=='log_template_miner.pkl':return []
+            if path.name in ('log_patterns.json','istio_words.json'):return ['dao.log_dao','service.log_generator']
+            return ['service.log_generator']
+        if child=='trace':return ['dao.trace_dao'] if path.name=='trace_patterns.json' else ['service.trace_generator']
+        if child=='metric':return ['service.metric_generator']
     for category,stage in [('raw_metric','service.metric_generator'),('raw_trace','service.trace_generator'),('raw_log','service.log_generator'),('resource_entity','service.ent_edge_index_generator')]:
         if category in parts:return [stage]
-    if 'dataset' in parts and 'final' not in parts:return ['service.dataset_generator']
+    if 'dataset' in parts:
+        if path.name=='all_metric.pkl':return ['service.metric_generator','service.dataset_generator']
+        if path.name=='all_trace.pkl':return ['service.trace_generator','service.dataset_generator']
+        if path.name=='all_trace_features.pkl':return ['service.trace_generator']
+        if path.name=='all_log.pkl':return ['service.dataset_generator']
+        if 'log' in parts:return ['service.log_generator']
+        if 'ent_edge_index' in parts:return ['service.dataset_generator']
+        if path.name=='time_interval_window_size_9.pkl':return ['service.time_interval_label_generator']
     return []
 
 
