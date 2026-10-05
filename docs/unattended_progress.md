@@ -1,5 +1,11 @@
 # LasRCA 工作紀錄（2026-10-04）
 
+## 2026-10-05追加公開資料encoder對照完成（09:45；09:56核對）
+
+`encoder_public_recheck_20261005`已completed。seed406 encoder600epochs、150序列finite、兩組下游seed405各500epochs及checkpoint hashes／split／labels核對通過。公開embedding基準36指標與上一輪完全一致。完整三版本比較及限制見[encoder來源與結果](encoder_public_provenance.md)：service AC@5公開68.18%、自訓seed405為72.73%、seed406為70.45%；node／pod AC@1在seed406由前次下降轉為提升，AC@5仍較公開基準低。兩輪自訓都使用同SHA256作者processed input，新raw重建資料未參與，不將差異歸因於新資料。
+
+結果追加已保存，完成提醒於核對後停止；此追加實驗不改變先前六項已完成一輪的狀態，不宣稱還原作者TS2Vec權重或其未知seed，也不把兩encoder seeds當五seed穩定性證據。
+
 ## 2026-10-05追加公開資料encoder覆核（第一輪完成狀態不變）
 
 已清楚區分作者提供的embedding_600.pkl與本次自行訓練的TS2Vec model.pkl：下載model.zip沒有pretrain權重，只有下游模型。上一輪及追加訓練使用相同作者released processed資料，直接與temp_data.zip entry核對SHA256相同，未使用本次raw重建資料。詳見[來源說明與追加對照](encoder_public_provenance.md)。
