@@ -1,5 +1,7 @@
 # LasRCA 工作紀錄（2026-10-04）
 
+> 2026-10-05 結案更新：0C-06～11 已依核准的 Luna 替代範圍完成；0C-10 逐 script 計數及產物歸屬已補齊。最新逐項驗收、具體數量與限制見 [六項結案報告](six_tasks_closure_20261005.md)。下文較早的待補／執行中狀態保留為歷史，不代表仍在執行。
+
 ## 2026-10-05追加公開資料encoder對照完成（09:45；09:56核對）
 
 `encoder_public_recheck_20261005`已completed。seed406 encoder600epochs、150序列finite、兩組下游seed405各500epochs及checkpoint hashes／split／labels核對通過。公開embedding基準36指標與上一輪完全一致。完整三版本比較及限制見[encoder來源與結果](encoder_public_provenance.md)：service AC@5公開68.18%、自訓seed405為72.73%、seed406為70.45%；node／pod AC@1在seed406由前次下降轉為提升，AC@5仍較公開基準低。兩輪自訓都使用同SHA256作者processed input，新raw重建資料未參與，不將差異歸因於新資料。
